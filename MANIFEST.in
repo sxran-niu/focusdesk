@@ -1,0 +1,6 @@
+include README.md pyproject.toml uv.lock
+recursive-include src/focusdesk/templates *.html
+recursive-include src/focusdesk/static *.js *.css *.svg
+recursive-include tests *.py
+recursive-include docs *.md *.png
+recursive-include examples *.md *.csv *.svg

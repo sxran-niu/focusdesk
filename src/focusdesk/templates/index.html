@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1">
+ <meta name="description" content="FocusDesk：安排今日时间，连接学习、生活与长期目标。">
+ <meta name="focusdesk-token" content="{{ csrf_token }}">
+ <title>FocusDesk · 今日安排</title>
+ <link rel="icon" href="{{ url_for('static',filename='favicon.svg') }}" type="image/svg+xml">
+ <link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}">
+ <script defer src="{{ url_for('static',filename='app.js') }}"></script>
+</head>
+<body>
+ <a class="skip-link" href="#main">跳到主要内容</a>
+ <div class="app-shell">
+  <aside class="sidebar">
+   <a class="brand" href="#today"><span class="brand-mark">F</span>FocusDesk</a>
+   <span class="side-caption">我的学习与生活</span>
+   <nav aria-label="主导航">
+    <a href="#today" class="nav-item active" data-nav="today"><span aria-hidden="true">◷</span>今日安排</a>
+    <a href="#tasks" class="nav-item" data-nav="tasks"><span aria-hidden="true">☷</span>任务清单</a>
+    <details class="nav-group" open><summary>目标与回顾</summary>
+     <a href="#goals" class="nav-item" data-nav="goals"><span aria-hidden="true">◎</span>长期进度</a>
+     <a href="#review" class="nav-item" data-nav="review"><span aria-hidden="true">▥</span>每周回顾</a>
+    </details>
+   </nav>
+   <div class="sidebar-bottom"><span class="save-dot" aria-hidden="true"></span>本地保存<span class="side-caption">{% if demo %}独立示例空间{% else %}个人空间{% endif %}</span></div>
+  </aside>
+  <main id="main">
+   {% if demo %}<div class="demo-banner">示例空间 · 课程、学分与安排均为虚构；修改只影响演示数据。</div>{% endif %}
+   <header class="page-header"><div><div class="eyebrow" id="page-eyebrow">DAILY PLANNER</div><h1 id="page-title">今日安排</h1></div><button class="button primary" id="global-add">＋ 新建任务</button></header>
+   <div id="page-content" aria-busy="true"><p class="empty">正在读取你的工作台…</p></div>
+   <noscript>请启用浏览器的 JavaScript，或使用 README 中的命令行界面。</noscript>
+  </main>
+ </div>
+ <dialog id="editor"><form id="editor-form"><div class="dialog-heading"><h2 id="editor-title"></h2><button type="button" class="icon-button" id="close-editor" aria-label="关闭">×</button></div><div id="editor-fields"></div><p id="editor-error" class="form-error" role="alert"></p><div class="dialog-footer"><button type="button" class="button" id="cancel-editor">取消</button><button type="submit" class="button primary" id="save-editor">保存</button></div></form></dialog>
+ <div id="notice" class="notice" role="status" hidden></div>
+</body>
+</html>
