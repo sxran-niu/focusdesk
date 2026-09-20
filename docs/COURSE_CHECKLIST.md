@@ -17,7 +17,7 @@ to files.
 | A useful problem | Daily planning linked to explicitly confirmed long-term outcomes |
 | Multiple files and reusable functions/classes | Models, planner, database, service, analytics, CLI and web |
 | Top-level imports | `Task`, `TimeBlock`, `Workbench` and planner functions |
-| Clear documentation | README, beginner guide, docstrings and development notes |
+| Clear documentation | README, beginner guide, docstrings and the three project logs |
 | PEP 8 | Ruff lint and formatting checks |
 | External data | No external dataset; small fictional demo included |
 | Save nontext outputs | SVG reports saved to disk, with browser download and example files |
@@ -31,4 +31,4 @@ The course describes a scope of around 50 hours, without a minimum number of
 commits or development days. The notes describe my decisions and checks. I will keep future work in
 meaningful commits and review the repository before submission.
 
-I still need to publish the repository and complete the Moodle submission.
+See [the roadmap](ROADMAP.md) for remaining checks and possible improvements.

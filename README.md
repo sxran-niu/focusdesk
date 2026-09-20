@@ -176,6 +176,10 @@ library. No external dataset or network service is needed after installation.
 
 ## Development and verification
 
+See the [changelog](CHANGELOG.md), [dated development log](docs/DEVELOPMENT.md),
+[verification record](docs/VALIDATION.md) and [remaining work](docs/ROADMAP.md).
+The development notes describe each milestone and the checks recorded for it.
+
 ```sh
 uv sync --dev
 uv run pytest
@@ -194,7 +198,9 @@ is Python 3.10.
 ## Storage and current boundaries
 
 Personal data: `data/focusdesk.sqlite3`. Demo data: `data/demo.sqlite3`.
-These files are ignored by version control. Close the server before copying
+These files and the default personal report directory `generated/` are ignored
+by version control; fictional examples remain tracked in `examples/report/`.
+Close the server before copying
 the entire `data/` folder as a backup. Nothing is uploaded to Drive or a server.
 
 The application is for one person on one computer. It has no login, calendar

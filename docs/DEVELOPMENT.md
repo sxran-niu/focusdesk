@@ -1,6 +1,8 @@
 # Development notes
 
-I use these notes to remember the choices behind FocusDesk.
+I use this page to keep track of why I changed things, not just what I added.
+The [changelog](../CHANGELOG.md) is the quick version, [checks](VALIDATION.md)
+has the test details, and the [roadmap](ROADMAP.md) holds the ideas still waiting.
 
 ## 2026-09-19 — a place to plan the day
 
@@ -27,4 +29,17 @@ The initial checks caught spacing around an SVG chart title and missing fixtures
 and docs in the source package. Those were fixed. The first test record, from
 September 26, has 24 passing tests plus browser and installation checks on Python
 3.12.13. Python 3.10 was checked for syntax only.
+
+## 2026-09-20 — keeping notes I can come back to
+
+I added a changelog, development notes, a check record and a roadmap, then updated
+the README and package contents. I wanted enough context to pick the project up
+again without reconstructing every decision from the code.
+
+I kept personal reports out of Git and left small fictional examples in the repo.
+The package stayed at 0.1.0.
+
+The September 27 documentation checks covered source/wheel agreement, whitespace,
+20 local links and source-package contents. App tests weren't repeated for this
+edit. Cross-day tasks and weekly planning were the next things I wanted to improve.
 

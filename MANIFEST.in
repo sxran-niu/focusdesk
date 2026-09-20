@@ -1,4 +1,4 @@
-include README.md pyproject.toml uv.lock
+include README.md CHANGELOG.md pyproject.toml uv.lock
 recursive-include src/focusdesk/templates *.html
 recursive-include src/focusdesk/static *.js *.css *.svg
 recursive-include tests *.py
