@@ -107,6 +107,11 @@ def create_app(database_path, demo=False):
         workbench.unschedule(record_id)
         return jsonify(ok=True)
 
+    @app.patch("/api/blocks/<int:record_id>")
+    def reschedule(record_id):
+        workbench.reschedule(record_id, payload())
+        return jsonify(ok=True)
+
     @app.post("/api/days/<selected_date>/auto-plan")
     def auto_plan(selected_date):
         return jsonify(workbench.auto_plan(selected_date))

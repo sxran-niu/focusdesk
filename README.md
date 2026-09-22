@@ -87,7 +87,8 @@ Automatic scheduling sorts by earliest deadline, then highest priority, then
 stable task ID, and places each whole task in the first gap that fits. It is a
 transparent heuristic, not a guarantee of an optimal schedule or meeting every
 deadline. Unplaced tasks remain visible. Tasks scheduled on another day are
-excluded; move them out of that schedule before rescheduling. Completed blocks
+excluded from automatic planning; use the carryover panel or task list to move
+them directly to another date/time. Changes retain the previous appointment. Completed blocks
 remain in the plan so completing work does not incorrectly create free time.
 
 Each task has at most one block. To spread a project over multiple days, create
@@ -212,3 +213,12 @@ the confirmation date is stored separately.
 
 I am preparing the project locally before publishing it. Course submission
 still needs a public GitHub repository and its URL submitted in Moodle.
+
+## Optional browser acceptance checks
+
+`scripts/browser_smoke.cjs` creates a temporary database and loopback server,
+checks the UI, and closes the server afterward. With Node.js and Playwright
+installed, run `node scripts/browser_smoke.cjs`. If Playwright is installed
+elsewhere, set `PLAYWRIGHT_MODULE` to its module path. Set `CHROME_EXECUTABLE`
+to an installed Chrome binary if not using Playwright's bundled browser, and
+`FOCUSDESK_PYTHON` if the Python executable is not `.venv/bin/python`.

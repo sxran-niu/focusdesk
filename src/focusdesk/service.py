@@ -302,8 +302,47 @@ class Workbench:
 
     def unschedule(self, record_id):
         with self.db.connect(write=True) as connection:
-            self.require("blocks", record_id, connection)
+            old = self.require("blocks", record_id, connection)
+            self._schedule_change(connection, old, None)
             connection.execute("DELETE FROM blocks WHERE id=?", (record_id,))
+
+    def _schedule_change(self, connection, old, new):
+        """Retain the previous appointment when explicitly moving/removing it."""
+        connection.execute(
+            "INSERT INTO changes(entity,entity_id,old_value,new_value) "
+            "VALUES('schedule',?,?,?)",
+            (old["task_id"], json.dumps(old), json.dumps(new)),
+        )
+
+    def reschedule(self, record_id, data):
+        """Move an open task atomically; conflicts leave its old block intact."""
+        selected_date = day(data.get("date"))
+        start = clock_minutes(data.get("start"))
+        with self.db.connect(write=True) as connection:
+            old = self.require("blocks", record_id, connection)
+            task = self.require("tasks", old["task_id"], connection)
+            if task["status"] != "open":
+                raise ValidationError("已完成任务请先重新打开，再调整安排。")
+            settings = connection.execute(
+                "SELECT * FROM day_settings WHERE date=?", (selected_date,)
+            ).fetchone() or {"start": 540, "end": 1080}
+            end = start + task["minutes"]
+            if start < settings["start"] or end > settings["end"]:
+                raise ValidationError("任务超出目标日期的可安排时间。")
+            overlap = connection.execute(
+                "SELECT 1 FROM blocks WHERE date=? AND start<? AND end>? AND id!=?",
+                (selected_date, end, start, record_id),
+            ).fetchone()
+            if overlap:
+                raise ValidationError("这个时间段与已有安排重叠，请选择空闲时段。")
+            new = {**old, "date": selected_date, "start": start, "end": end}
+            if new == old:
+                return
+            connection.execute(
+                "UPDATE blocks SET date=?,start=?,end=? WHERE id=?",
+                (selected_date, start, end, record_id),
+            )
+            self._schedule_change(connection, old, new)
 
     def auto_plan(self, selected_date):
         day(selected_date)
@@ -391,4 +430,13 @@ class Workbench:
             data["day"]["start"], data["day"]["end"], today_blocks
         )
         data["today"] = date.today().isoformat()
+        open_ids = {t["id"] for t in data["tasks"] if t["status"] == "open"}
+        data["carryover"] = sorted(
+            (
+                b
+                for b in data["blocks"]
+                if b["date"] < selected_date and b["task_id"] in open_ids
+            ),
+            key=lambda b: (b["date"], b["start"]),
+        )
         return data

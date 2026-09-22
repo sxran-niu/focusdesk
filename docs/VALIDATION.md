@@ -42,6 +42,16 @@ the virtual environment. Existing release files stayed intact.
 I didn't repeat the app tests or separate wheel installation for this docs update.
 The code and package/lock versions stayed at 0.1.0.
 
+## 2026-09-27 — cross-day tasks
+
+I extended the checks to cover moves, failed-move rollback, repeated saves,
+completed-task restrictions and history. The suite reached **27 passing tests**,
+and Ruff passed.
+
+I added `scripts/browser_smoke.cjs` for moves and history at 1440/390/320px. It ran
+with temporary data on macOS/Python 3.12.13/Chrome, with no script errors or
+horizontal overflow.
+
 ## What I still want to try
 
 - Run the app and tests on an actual Python 3.10 interpreter.

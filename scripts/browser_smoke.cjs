@@ -1,0 +1,74 @@
+/* Optional browser acceptance test; always uses a temporary database. */
+const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const {spawn} = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const net = require('node:net');
+const assert = require('node:assert/strict');
+const root = path.resolve(__dirname, '..');
+
+(async () => {
+  const socket = net.createServer();
+  await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve));
+  const port = socket.address().port;
+  await new Promise(resolve => socket.close(resolve));
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'focusdesk-browser-'));
+  const server = spawn(process.env.FOCUSDESK_PYTHON || path.join(root, '.venv/bin/python'),
+    ['-m', 'focusdesk', '--db', path.join(temp, 'test.sqlite3'), 'serve', '--port', String(port)], {cwd:root});
+  let diagnostics = '';
+  server.stderr.on('data', data => diagnostics += data);
+  server.on('error', error => diagnostics += error.message);
+  let browser;
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    let ready = false;
+    for (let i=0; i<60; i++) {
+      try { if ((await fetch(base+'/api/state')).ok) {ready=true;break;} } catch {}
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    assert(ready, diagnostics);
+    browser = await chromium.launch({headless:true, executablePath:process.env.CHROME_EXECUTABLE || undefined});
+    const page = await browser.newPage({viewport:{width:1440,height:1000}});
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(base);
+    await page.getByRole('heading', {name:'当日日程',exact:true}).waitFor();
+    const api = (url, method='GET', data) => page.evaluate(async ({url,method,data}) => {
+      const response = await fetch(url, {method,headers:{'Content-Type':'application/json','X-FocusDesk-Token':document.querySelector('meta[name="focusdesk-token"]').content},body:data===undefined?undefined:JSON.stringify(data)});
+      const result=await response.json();
+      if (!response.ok) throw Error(result.error);
+      return result;
+    }, {url,method,data});
+    const today=(await api('/api/state')).today;
+    const offset=(value,n)=>{const d=new Date(value+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
+    const yesterday=offset(today,-1);
+    const task=await api('/api/tasks','POST',{title:'跨日验收任务',minutes:45});
+    await api(`/api/days/${yesterday}/blocks`,'POST',{task_id:task.id,start:'09:00'});
+    await page.reload();
+    await page.getByRole('heading',{name:'此前未完成'}).waitFor();
+    await page.getByRole('button',{name:'移到所选日 / 改期'}).click();
+    await page.locator('#f-start').fill('10:00');
+    const save=async()=>{await page.locator('#save-editor').click();await page.locator('#editor').waitFor({state:'hidden'});};
+    await save();
+    await page.locator('.agenda-item').filter({hasText:'跨日验收任务'}).waitFor();
+    assert.equal((await api('/api/state')).carryover.length,0);
+    await page.getByRole('link',{name:'任务清单'}).click();
+    await page.getByText('安排历史（1）',{exact:true}).waitFor();
+    // Further milestone scenarios are added alongside their implementations.
+    for (const width of [1440,390,320]) {
+      await page.setViewportSize({width,height:1000});
+      for (const route of ['today','tasks','goals','review']) {
+        await page.goto(base+'/#'+route);
+        await page.locator('#page-content[aria-busy="false"]').waitFor();
+        if (route==='review') await page.getByRole('heading',{name:'每日实际投入'}).waitFor();
+        assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), `Overflow: ${route} at ${width}`);
+      }
+    }
+    assert.deepEqual(errors,[]);
+    console.log(JSON.stringify({passed:true,temporaryDirectory:temp}));
+  } finally {
+    if(browser) await browser.close();
+    server.kill('SIGTERM');
+  }
+})().catch(error=>{console.error(error);process.exitCode=1;});

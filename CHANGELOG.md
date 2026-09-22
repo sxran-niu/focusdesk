@@ -9,6 +9,12 @@ holds ideas I haven't built yet.
 
 I added project notes, a check record and a roadmap so I can follow the work.
 
+### Unfinished tasks
+
+I added a carryover panel for tasks left on earlier days. Rescheduling keeps the
+previous appointment in history, and a failed move leaves the original in place.
+A completed task needs to be reopened before it can move.
+
 ## 0.1.0 — 2026-09-19
 
 I started with a local Python, Flask and SQLite workbench: daily planning on the

@@ -43,3 +43,16 @@ The September 27 documentation checks covered source/wheel agreement, whitespace
 20 local links and source-package contents. App tests weren't repeated for this
 edit. Cross-day tasks and weekly planning were the next things I wanted to improve.
 
+## 2026-09-22 — bringing unfinished tasks back into view
+
+Tasks left on an earlier day were too easy to lose track of. I added a carryover
+panel and a way to move them from either the task list or the daily view.
+
+I kept previous appointments in history. A move checks space and conflicts before
+saving, so a failed move doesn't lose the old appointment. Repeated saves don't
+create extra history, and completed tasks must be reopened before moving.
+
+The September 27 checks reached 27 passing tests, with browser coverage for moves,
+history and narrow layouts. Tasks still have one block each; I left splitting them
+across days for later.
+

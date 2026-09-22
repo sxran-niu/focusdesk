@@ -6,10 +6,10 @@ Current version: 0.1.0.
 
 I have the daily planner, tasks, goals and weekly reports working.
 
+- **Cross-day tasks**: Carryover, rescheduling and appointment history.
 
 ## Still on my list
 
-- Cross-day tasks.
 - Weekly planning.
 - Recurring appointments.
 - Editing and recovery.
