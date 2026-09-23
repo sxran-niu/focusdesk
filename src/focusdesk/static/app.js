@@ -157,6 +157,18 @@
       return `<details class="term" ${index===0||phase.start_date<=state.today&&phase.end_date>=state.today?'open':''}><summary><strong>${escape(phase.title)}</strong><span class="meta">${phase.start_date} — ${phase.end_date} · 已确认 ${phase.earned} / 计划 ${phase.target} ${escape(goal.unit)}</span></summary><div class="term-content"><div class="term-toolbar"><button class="button small" data-action="outcome" data-id="${phase.id}">＋ 添加课程 / 成果</button><button class="text-button" data-action="revise" data-id="${phase.id}">调整阶段目标</button></div>${outcomes.map(outcome=>`<article class="outcome-row"><div class="outcome-body"><div class="task-title">${escape(outcome.title)}</div><div class="meta">${outcome.amount} ${escape(goal.unit)}${outcome.grade?' · 成绩 '+escape(outcome.grade):''}${outcome.result_date?' · '+escape(outcome.result_date)+' 确认':''}</div>${outcome.notes?`<p class="meta">${escape(outcome.notes)}</p>`:''}</div><span class="tag ${outcome.status}">${{pending:'待确认',passed:'已确认',failed:'未通过'}[outcome.status]}</span><button class="button small" data-action="result" data-id="${outcome.id}">记录结果</button><button class="text-button" data-action="edit-outcome" data-id="${outcome.id}">编辑</button></article>`).join('')||'<p class="empty">添加课程或成果后，就能关联每日任务。</p>'}${ended&&shortage?`<div class="hint warning">阶段已结束，已确认成果比计划少 ${shortage} ${escape(goal.unit)}${phase.pending?`，另有 ${phase.pending} ${escape(goal.unit)}待确认`:''}。请核实结果，再考虑后续安排。</div>`:''}${outcomes.some(o=>o.status==='failed')?'<div class="hint warning">本阶段有未通过的成果，可在结果说明中记录补考或下一步安排。</div>':''}<div class="history">原计划：${phase.original_target} ${escape(goal.unit)}${changes.length?`<details><summary>查看 ${changes.length} 次调整</summary>${changes.map(c=>`<p>${escape(c.created_at.slice(0,10))} · ${escape(c.old_value)} → ${escape(c.new_value)}</p>`).join('')}</details>`:''}</div></div></details>`;
     }).join('')||'<section class="panel empty">把长期目标拆成学期、月份或其他阶段。</section>'}</div></div>`;
   }
+  async function renderWeek() {
+    const viewingDate=selectedDate;
+    content.innerHTML='<p class="empty">正在汇总本周计划…</p>';
+    try {
+      const plan=await api(`/api/weekly-plan?date=${viewingDate}`);
+      if(route!=='week'||selectedDate!==viewingDate)return;
+      content.innerHTML=dateToolbar(`<span class="meta">${plan.start} — ${plan.end}</span>`)+
+        `<section class="panel"><h2>把本周投入安排到日程</h2><p class="meta">按课程设定本周预计投入，再给关联任务安排时间。这里的分钟数不转换为学分；实际投入按完成日期单独统计。</p><div class="hint">本周尚有 ${duration(plan.free_minutes)} 空闲 · 课程计划中 ${duration(plan.unplanned_minutes)} 尚未安排</div>${plan.unplanned_minutes>plan.free_minutes?'<p class="hint warning">计划缺口超过本周剩余可用时间，请减少计划或调整日程。</p>':''}</section>`+
+        plan.courses.map(row=>`<section class="panel" style="margin-top:16px"><div class="panel-heading"><div><h3>${escape(row.title)}</h3><p class="meta">${escape(row.goal)} / ${escape(row.milestone)}</p></div><button class="button small" data-action="weekly-target" data-id="${row.outcome_id}" data-minutes="${row.target_minutes}">设置本周投入</button></div><div class="review-metrics"><p>本周计划 <strong>${duration(row.target_minutes)}</strong></p><p>已安排 <strong>${duration(row.scheduled_minutes)}</strong></p><p>实际投入 <strong>${duration(row.actual_minutes)}</strong></p></div><p class="${row.unplanned_minutes?'hint warning':'meta'}">${row.target_minutes?`还有 ${duration(row.unplanned_minutes)} 尚未安排`:'尚未设置本周投入目标'}</p><p class="meta">关联的未完成任务共预计 ${duration(row.remaining_task_minutes)}（包含其他周任务）。请在任务中关联此课程，再进入当日日程安排时间。</p><div class="task-controls"><a class="button small" href="#tasks">查看任务</a><a class="button small" href="#today">安排所选日</a></div></section>`).join('')+
+        (plan.courses.length?'':'<section class="panel empty" style="margin-top:16px"><p>先在长期目标中添加阶段与课程，再设定本周计划。</p><a class="button" href="#goals">打开长期进度</a></section>');
+    } catch(error) {if(route==='week')content.innerHTML=`<p class="empty">${escape(error.message)}</p>`;}
+  }
   async function renderReview() {
     const reviewingDate=selectedDate;
     content.innerHTML='<p class="empty">正在汇总本周记录…</p>';
@@ -179,12 +191,12 @@
   }
   function render() {
     route=(location.hash.slice(1).split('/')[0]||'today');
-    if(!['today','tasks','goals','review'].includes(route))route='today';
-    const titles={today:['今日安排','DAILY PLANNER'],tasks:['任务清单','TASKS'],goals:['长期进度','GOALS & OUTCOMES'],review:['每周回顾','WEEKLY REVIEW']};
+    if(!['today','tasks','goals','week','review'].includes(route))route='today';
+    const titles={today:['今日安排','DAILY PLANNER'],tasks:['任务清单','TASKS'],goals:['长期进度','GOALS & OUTCOMES'],week:['本周计划','WEEKLY PLAN'],review:['每周回顾','WEEKLY REVIEW']};
     $('#page-title').textContent=titles[route][0];$('#page-eyebrow').textContent=titles[route][1];document.title=`FocusDesk · ${titles[route][0]}`;
     document.querySelectorAll('[data-nav]').forEach(el=>{el.classList.toggle('active',el.dataset.nav===route);if(el.dataset.nav===route)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
     $('#global-add').textContent=route==='goals'?'＋ 新建目标':'＋ 新建任务';
-    ({today:renderToday,tasks:renderTasks,goals:renderGoals,review:renderReview}[route])();
+    ({today:renderToday,tasks:renderTasks,goals:renderGoals,week:renderWeek,review:renderReview}[route])();
   }
   async function mutate(path,method,data,message='已保存') {
     if(loading)return;loading=true;
@@ -216,6 +228,7 @@
       openForm('调整阶段目标',`<p>${escape(phase.title)}</p><p class="meta">初始计划 ${phase.original_target}，目前计划 ${phase.target}。修改会保留记录。</p>`+field('target','调整后的目标数量','number',phase.target,'required min="0.01" max="100000" step="0.01"'),data=>api(`/api/milestones/${id}`,'PATCH',data));
     }
     else if(action==='requirement')openForm('添加完成条件',field('title','必须满足的条件','text','','required maxlength="160"'),data=>api('/api/requirements','POST',{...data,goal_id:id}));
+    else if(action==='weekly-target')openForm('设置本周投入',field('minutes','本周计划投入（分钟，0 表示不设目标）','number',button.dataset.minutes,'required min="0" max="10080"')+'<p class="meta">保存到所选日期所在的周一至周日。计划用时不计入学分。</p>',data=>api(`/api/weeks/${selectedDate}/outcomes/${id}`,'PUT',data));
     else if(action==='day')dayForm();
     else if(action==='unschedule')mutate(`/api/blocks/${id}`,'DELETE',{},'已移出日程，任务仍保留');
     else if(action==='auto')mutate(`/api/days/${selectedDate}/auto-plan`,'POST',{},r=>`已安排 ${r.scheduled} 项，${r.unplaced} 项仍待安排`);

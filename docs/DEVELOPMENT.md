@@ -56,3 +56,17 @@ The September 27 checks reached 27 passing tests, with browser coverage for move
 history and narrow layouts. Tasks still have one block each; I left splitting them
 across days for later.
 
+## 2026-09-23 — seeing what's missing from the week
+
+Linking a task to a course wasn't enough to answer a simple question: have I made
+room for the study time I planned this week? I added saved weekly course targets
+and a view of scheduled time, actual effort and the remaining gap.
+
+I used Monday–Sunday weeks and explicit targets. Open course tasks are estimates
+to consider, not an automatic commitment to finish everything this week. Completed
+blocks stay visible in the schedule, while actual effort is counted separately.
+
+The September 27 checks reached 30 passing tests. They included week boundaries,
+repeated target updates and a six-hour target with two hours scheduled and four
+left. Fixed appointments were the next missing piece in the capacity calculation.
+

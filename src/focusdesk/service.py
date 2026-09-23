@@ -15,6 +15,7 @@ from .models import (
     text,
 )
 from .planner import free_intervals, suggest_schedule
+from .weekly import week_start
 
 
 class Workbench:
@@ -375,6 +376,19 @@ class Workbench:
             )
         return {"scheduled": len(scheduled), "unplaced": len(unplaced)}
 
+    def set_weekly_target(self, selected_date, outcome_id, data):
+        """Set one explicit effort target per course and Monday–Sunday week."""
+        start = week_start(selected_date)
+        minutes = integer(data.get("minutes"), "本周计划分钟", 0, 10080)
+        with self.db.connect(write=True) as connection:
+            self.require("outcomes", outcome_id, connection)
+            connection.execute(
+                "INSERT INTO weekly_targets VALUES(?,?,?) "
+                "ON CONFLICT(week_start,outcome_id) DO UPDATE "
+                "SET minutes=excluded.minutes",
+                (start, outcome_id, minutes),
+            )
+
     def snapshot(self, selected_date=None):
         """Read a consistent snapshot; recompute progress from unique outcome rows."""
         selected_date = day(selected_date or date.today().isoformat())
@@ -383,7 +397,9 @@ class Workbench:
             data = {
                 table: [
                     dict(row)
-                    for row in connection.execute(f"SELECT * FROM {table} ORDER BY id")
+                    for row in connection.execute(
+                        f"SELECT * FROM {table} ORDER BY rowid"
+                    )
                 ]
                 for table in (
                     "goals",
@@ -393,6 +409,8 @@ class Workbench:
                     "tasks",
                     "blocks",
                     "changes",
+                    "weekly_targets",
+                    "day_settings",
                 )
             }
             settings = connection.execute(

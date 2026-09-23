@@ -222,3 +222,10 @@ installed, run `node scripts/browser_smoke.cjs`. If Playwright is installed
 elsewhere, set `PLAYWRIGHT_MODULE` to its module path. Set `CHROME_EXECUTABLE`
 to an installed Chrome binary if not using Playwright's bundled browser, and
 `FOCUSDESK_PYTHON` if the Python executable is not `.venv/bin/python`.
+
+## Weekly planning
+
+Under 本周计划, set explicit effort targets for each course and Monday–Sunday
+week. A 360-minute target with 120 scheduled minutes shows a 240-minute gap.
+Recorded actual time is separate and never increases credits. Course-wide open
+task estimates include other weeks and do not automatically become weekly targets.

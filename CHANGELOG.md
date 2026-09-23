@@ -15,6 +15,12 @@ I added a carryover panel for tasks left on earlier days. Rescheduling keeps the
 previous appointment in history, and a failed move leaves the original in place.
 A completed task needs to be reopened before it can move.
 
+### Weekly planning
+
+I added course effort targets by Monday–Sunday week, alongside scheduled time,
+actual effort and the remaining gap. Open tasks help estimate the work; they aren't
+all automatically due that week. Study hours still don't turn into credits.
+
 ## 0.1.0 — 2026-09-19
 
 I started with a local Python, Flask and SQLite workbench: daily planning on the

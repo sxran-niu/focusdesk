@@ -55,12 +55,22 @@ const root = path.resolve(__dirname, '..');
     assert.equal((await api('/api/state')).carryover.length,0);
     await page.getByRole('link',{name:'任务清单'}).click();
     await page.getByText('安排历史（1）',{exact:true}).waitFor();
+    const goal=await api('/api/goals','POST',{title:'验收目标',target:6,unit:'学分',target_date:'2099-12-31'});
+    const phase=await api('/api/milestones','POST',{goal_id:goal.id,title:'验收学期',target:6,start_date:today,end_date:'2098-12-31'});
+    const outcome=await api('/api/outcomes','POST',{milestone_id:phase.id,title:'验收课程',amount:6});
+    await api(`/api/tasks/${task.id}`,'PATCH',{outcome_id:outcome.id});
+    await page.goto(base+'/#week');
+    await page.getByRole('button',{name:'设置本周投入'}).click();
+    await page.locator('#f-minutes').fill('360');await save();
+    await page.getByText('还有 5 小时 15 分 尚未安排',{exact:true}).waitFor();
+    assert.equal((await api('/api/state')).goals[0].earned,0);
     // Further milestone scenarios are added alongside their implementations.
     for (const width of [1440,390,320]) {
       await page.setViewportSize({width,height:1000});
-      for (const route of ['today','tasks','goals','review']) {
+      for (const route of ['today','tasks','goals','week','review']) {
         await page.goto(base+'/#'+route);
         await page.locator('#page-content[aria-busy="false"]').waitFor();
+        if (route==='week') await page.getByRole('heading',{name:'把本周投入安排到日程'}).waitFor();
         if (route==='review') await page.getByRole('heading',{name:'每日实际投入'}).waitFor();
         assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), `Overflow: ${route} at ${width}`);
       }

@@ -163,6 +163,18 @@ def create_app(database_path, demo=False):
 
         return jsonify(weekly_report(workbench, request.args.get("date")))
 
+    @app.get("/api/weekly-plan")
+    def weekly_plan():
+        from .weekly import weekly_plan
+
+        state = workbench.snapshot(request.args.get("date"))
+        return jsonify(weekly_plan(state, state["day"]["date"]))
+
+    @app.put("/api/weeks/<selected_date>/outcomes/<int:record_id>")
+    def weekly_target(selected_date, record_id):
+        workbench.set_weekly_target(selected_date, record_id, payload())
+        return jsonify(ok=True)
+
     @app.get("/api/export/<kind>")
     def export(kind):
         from .analytics import export_content

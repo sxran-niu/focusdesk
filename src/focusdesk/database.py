@@ -50,6 +50,11 @@ CREATE TABLE IF NOT EXISTS changes (
  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS weekly_targets (
+ week_start TEXT NOT NULL, outcome_id INTEGER NOT NULL REFERENCES outcomes(id),
+ minutes INTEGER NOT NULL CHECK(minutes BETWEEN 0 AND 10080),
+ PRIMARY KEY(week_start,outcome_id)
+);
 """
 
 

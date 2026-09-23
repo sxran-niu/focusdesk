@@ -7,10 +7,10 @@ Current version: 0.1.0.
 I have the daily planner, tasks, goals and weekly reports working.
 
 - **Cross-day tasks**: Carryover, rescheduling and appointment history.
+- **Weekly planning**: Saved weekly course targets, scheduled/actual effort and gaps.
 
 ## Still on my list
 
-- Weekly planning.
 - Recurring appointments.
 - Editing and recovery.
 - Publish a public GitHub repository and submit its URL in Moodle before the deadline.

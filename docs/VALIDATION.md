@@ -52,6 +52,13 @@ I added `scripts/browser_smoke.cjs` for moves and history at 1440/390/320px. It 
 with temporary data on macOS/Python 3.12.13/Chrome, with no script errors or
 horizontal overflow.
 
+## 2026-09-27 — weekly planning
+
+I added cases for week boundaries, target updates, planning gaps, separate actual
+effort and protected API writes. **30 tests passed**, along with Ruff lint and
+formatting. The browser checks covered saving targets and displaying gaps, plus
+the existing carryover and narrow-layout flows.
+
 ## What I still want to try
 
 - Run the app and tests on an actual Python 3.10 interpreter.
