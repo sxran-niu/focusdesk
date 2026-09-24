@@ -8,10 +8,10 @@ I have the daily planner, tasks, goals and weekly reports working.
 
 - **Cross-day tasks**: Carryover, rescheduling and appointment history.
 - **Weekly planning**: Saved weekly course targets, scheduled/actual effort and gaps.
+- **Recurring appointments**: Weekly fixed appointments, single cancellations and future stops.
 
 ## Still on my list
 
-- Recurring appointments.
 - Editing and recovery.
 - Publish a public GitHub repository and submit its URL in Moodle before the deadline.
 - Try actual Python 3.10 runtime, another computer and sustained everyday use.

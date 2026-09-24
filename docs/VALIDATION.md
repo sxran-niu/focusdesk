@@ -59,6 +59,15 @@ effort and protected API writes. **30 tests passed**, along with Ruff lint and
 formatting. The browser checks covered saving targets and displaying gaps, plus
 the existing carryover and narrow-layout flows.
 
+## 2026-09-27 — recurring appointments
+
+I added coverage for fixed-time conflicts, rollback, automatic avoidance, saved
+cancellations, past appointments and weekly/CSV time. **39 tests passed**, and
+Ruff lint and formatting passed.
+
+In the browser checks, I covered creating a series, cancelling one occurrence and
+stopping future ones. All routes passed at 1440/390/320px without page script errors.
+
 ## What I still want to try
 
 - Run the app and tests on an actual Python 3.10 interpreter.

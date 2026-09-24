@@ -70,3 +70,19 @@ The September 27 checks reached 30 passing tests. They included week boundaries,
 repeated target updates and a six-hour target with two hours scheduled and four
 left. Fixed appointments were the next missing piece in the capacity calculation.
 
+## 2026-09-24 — making room for classes and work
+
+I didn't want to enter the same class or work shift every week. I added recurring
+appointments over a date range, up to 366 days, with a separate fixed-schedule view.
+
+I check the whole series before saving it. One conflict rejects the series, so it
+can't leave a half-created schedule behind. Cancelling one occurrence survives a
+restart; stopping future appointments keeps the past intact.
+
+Fixed time now counts in planning, weekly capacity and reports. It reserves space
+without automatically counting as completed effort or progress.
+
+The September 27 checks reached 39 passing tests, including conflicts, rollback,
+saved exceptions and past appointments. To change a series, I still stop it and
+create a replacement. There is still one daily availability window.
+

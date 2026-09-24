@@ -64,10 +64,25 @@ const root = path.resolve(__dirname, '..');
     await page.locator('#f-minutes').fill('360');await save();
     await page.getByText('还有 5 小时 15 分 尚未安排',{exact:true}).waitFor();
     assert.equal((await api('/api/state')).goals[0].earned,0);
+    await page.goto(base+'/#calendar');
+    await page.getByRole('button',{name:'＋ 添加重复安排',exact:true}).click();
+    await page.locator('#f-title').fill('每周固定课');
+    await page.locator('#f-weekday').selectOption(String((new Date(today+'T12:00:00Z').getUTCDay()+6)%7));
+    await page.locator('#f-end_date').fill(offset(today,14));
+    await save();
+    assert.equal((await api('/api/state')).fixed_blocks.length,3);
+    await page.goto(base+'/#today');
+    const fixed=page.locator('.agenda-item').filter({hasText:'每周固定课'});
+    await fixed.waitFor();
+    await fixed.getByRole('button',{name:'取消这一次'}).click();await save();
+    assert.equal((await api('/api/state')).fixed_blocks.length,2);
+    await page.goto(base+'/#calendar');
+    await page.getByRole('button',{name:'停止后续安排'}).click();await save();
+    assert.equal((await api('/api/state')).fixed_blocks.length,0);
     // Further milestone scenarios are added alongside their implementations.
     for (const width of [1440,390,320]) {
       await page.setViewportSize({width,height:1000});
-      for (const route of ['today','tasks','goals','week','review']) {
+      for (const route of ['today','tasks','goals','week','calendar','review']) {
         await page.goto(base+'/#'+route);
         await page.locator('#page-content[aria-busy="false"]').waitFor();
         if (route==='week') await page.getByRole('heading',{name:'把本周投入安排到日程'}).waitFor();

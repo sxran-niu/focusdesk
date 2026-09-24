@@ -5,7 +5,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from focusdesk import ValidationError
+from focusdesk import ValidationError, Workbench
+from focusdesk.analytics import export_content, weekly_report
 from focusdesk.weekly import week_start, weekly_plan
 
 
@@ -100,3 +101,91 @@ def test_weekly_targets_are_normalized_and_weeks_are_independent(desk, course):
     )
     with pytest.raises(ValidationError):
         desk.set_weekly_target("2026-09-30", outcome, {"minutes": -1})
+
+
+def recurring_data(**overrides):
+    return {
+        "title": "Weekly lecture",
+        "category": "study",
+        "weekday": 0,
+        "start_date": "2026-09-28",
+        "end_date": "2026-10-12",
+        "start": "09:00",
+        "end": "10:00",
+        **overrides,
+    }
+
+
+def test_recurring_blocks_manual_auto_moves_and_window_changes(desk):
+    desk.calendar.add(recurring_data())
+    task = desk.add_task({"title": "Revision"})
+    with pytest.raises(ValidationError):
+        desk.schedule_task("2026-09-28", {"task_id": task, "start": "09:15"})
+    with pytest.raises(ValidationError):
+        desk.set_day("2026-09-28", {"start": "09:30", "end": "18:00"})
+    assert desk.auto_plan("2026-09-28")["scheduled"] == 1
+    block = desk.snapshot()["blocks"][0]
+    assert block["start"] == 600
+    with pytest.raises(ValidationError):
+        desk.reschedule(block["id"], {"date": "2026-10-05", "start": "09:30"})
+    state = desk.snapshot("2026-09-28")
+    assert state["gaps"][0][0] == 660
+    assert weekly_plan(state, "2026-09-28")["free_minutes"] == 7 * 540 - 120
+    assert weekly_report(desk, "2026-09-28")["planned_minutes"] == 120
+    assert "Weekly lecture" in export_content(desk, "csv", "2026-09-28")[0]
+
+
+def test_recurring_conflict_rolls_back_entire_series(desk):
+    task = desk.add_task({"title": "Already booked"})
+    desk.schedule_task("2026-10-05", {"task_id": task, "start": "09:30"})
+    with pytest.raises(ValidationError, match="整组未保存"):
+        desk.calendar.add(recurring_data())
+    state = desk.snapshot()
+    assert state["recurring_rules"] == state["fixed_blocks"] == []
+    desk.calendar.add(recurring_data(start="11:00", end="12:00"))
+    with pytest.raises(ValidationError):
+        desk.calendar.add(recurring_data(start="11:30", end="12:30"))
+    assert len(desk.snapshot()["fixed_blocks"]) == 3
+
+
+def test_cancelled_occurrence_stays_cancelled_after_restart(desk):
+    desk.calendar.add(recurring_data())
+    block = desk.snapshot()["fixed_blocks"][1]
+    desk.calendar.cancel(block["id"])
+    state = Workbench(desk.db.path).snapshot()
+    assert [b["date"] for b in state["fixed_blocks"]] == ["2026-09-28", "2026-10-12"]
+    assert state["changes"][0]["entity"] == "fixed_block"
+
+
+def test_stopping_rule_preserves_past_and_is_idempotent(desk, today):
+    current = date.fromisoformat(today)
+    rule = desk.calendar.add(
+        recurring_data(
+            weekday=current.weekday(),
+            start_date=(current - timedelta(days=7)).isoformat(),
+            end_date=(current + timedelta(days=7)).isoformat(),
+        )
+    )
+    desk.calendar.stop(rule)
+    desk.calendar.stop(rule)
+    state = desk.snapshot()
+    assert len(state["fixed_blocks"]) == 1
+    assert state["fixed_blocks"][0]["date"] < today
+    assert state["recurring_rules"][0]["active"] == 0
+    assert len(state["changes"]) == 1
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"weekday": 7},
+        {"end_date": "2028-01-01"},
+        {"end": "08:00"},
+        {"start_date": "2026-09-29", "end_date": "2026-09-29"},
+        {"category": "bad"},
+    ],
+)
+def test_invalid_recurrence_is_rejected(desk, values):
+    with pytest.raises(ValidationError):
+        desk.calendar.add(recurring_data(**values))
+    assert desk.snapshot()["fixed_blocks"] == []

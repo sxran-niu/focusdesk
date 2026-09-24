@@ -55,6 +55,20 @@ CREATE TABLE IF NOT EXISTS weekly_targets (
  minutes INTEGER NOT NULL CHECK(minutes BETWEEN 0 AND 10080),
  PRIMARY KEY(week_start,outcome_id)
 );
+CREATE TABLE IF NOT EXISTS recurring_rules (
+ id INTEGER PRIMARY KEY, title TEXT NOT NULL,
+ category TEXT NOT NULL CHECK(category IN ('study','life','rest')),
+ weekday INTEGER NOT NULL CHECK(weekday BETWEEN 0 AND 6),
+ start_date TEXT NOT NULL, end_date TEXT NOT NULL,
+ start INTEGER NOT NULL, end INTEGER NOT NULL,
+ active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+ CHECK(start >= 0 AND end <= 1440 AND start < end)
+);
+CREATE TABLE IF NOT EXISTS fixed_blocks (
+ id INTEGER PRIMARY KEY, rule_id INTEGER NOT NULL REFERENCES recurring_rules(id),
+ date TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL,
+ UNIQUE(rule_id,date), CHECK(start >= 0 AND end <= 1440 AND start < end)
+);
 """
 
 

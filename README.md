@@ -94,7 +94,8 @@ remain in the plan so completing work does not incorrectly create free time.
 Each task has at most one block. To spread a project over multiple days, create
 separate actionable tasks. Changing a scheduled task's estimated duration
 requires removing its block first. A day's availability is one interval; add
-rest/life tasks for breaks. Overnight and recurring schedules are outside v0.1.
+rest/life tasks for breaks. Overnight schedules remain unsupported. Weekly fixed appointments can reserve
+classes, work and breaks over a bounded date range (up to 366 days).
 
 ## Headless CLI examples
 
@@ -205,7 +206,7 @@ Close the server before copying
 the entire `data/` folder as a backup. Nothing is uploaded to Drive or a server.
 
 The application is for one person on one computer. It has no login, calendar
-synchronisation, recurring tasks, automatic retake planning or
+synchronisation, recurring task completion, automatic retake planning or
 cross-midnight blocks. Confirmations are entered manually. Goal/stage/outcome
 deletion and moving outcomes between stages are not yet exposed; tasks can be
 deleted. Outcome totals belong to the stage where the course was recorded;
@@ -229,3 +230,12 @@ Under 本周计划, set explicit effort targets for each course and Monday–Sun
 week. A 360-minute target with 120 scheduled minutes shows a 240-minute gap.
 Recorded actual time is separate and never increases credits. Course-wide open
 task estimates include other weeks and do not automatically become weekly targets.
+
+## Fixed weekly appointments
+
+固定课表 creates one weekly occurrence within an explicit start/end date range.
+Every occurrence must fit that day's availability and avoid existing appointments;
+any conflict rejects the whole rule. Cancel one occurrence for an exception, or
+stop today's and future occurrences while keeping past appointments. All planners
+respect fixed time, and weekly reports/CSV include it as planned time. Fixed time
+does not automatically count as completed effort or earned credit.

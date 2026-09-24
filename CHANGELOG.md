@@ -21,6 +21,12 @@ I added course effort targets by Monday–Sunday week, alongside scheduled time,
 actual effort and the remaining gap. Open tasks help estimate the work; they aren't
 all automatically due that week. Study hours still don't turn into credits.
 
+### Recurring appointments
+
+I added weekly classes, work and breaks over a date range. I can cancel one occurrence
+or stop future ones while keeping the past. Fixed appointments now count when the
+planner works out free time, weekly capacity and reports.
+
 ## 0.1.0 — 2026-09-19
 
 I started with a local Python, Flask and SQLite workbench: daily planning on the

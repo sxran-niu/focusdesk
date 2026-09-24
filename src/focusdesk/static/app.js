@@ -77,10 +77,10 @@
     return `<div class="toolbar"><div class="toolbar-group"><button class="icon-button" data-action="prev" aria-label="前一天">‹</button><input class="date-picker" type="date" value="${selectedDate}" id="selected-date" aria-label="查看日期"><button class="icon-button" data-action="next" aria-label="后一天">›</button><button class="text-button" data-action="today">回到今天</button></div>${extra}</div>`;
   }
   function renderToday() {
-    const blocks=state.blocks.filter(b=>b.date===selectedDate).sort((a,b)=>a.start-b.start);
+    const blocks=[...state.blocks,...state.fixed_blocks.map(b=>({...b,fixed:true}))].filter(b=>b.date===selectedDate).sort((a,b)=>a.start-b.start);
     const tasksById=new Map(state.tasks.map(t=>[t.id,t]));
     const totals={study:0,life:0,rest:0};
-    blocks.forEach(b=>totals[tasksById.get(b.task_id).category]+=b.end-b.start);
+    blocks.forEach(b=>totals[b.fixed?b.category:tasksById.get(b.task_id).category]+=b.end-b.start);
     const capacity=state.day.end-state.day.start;
     const used=Object.values(totals).reduce((a,b)=>a+b,0);
     const scheduled=new Set(state.blocks.map(b=>b.task_id));
@@ -88,6 +88,11 @@
     const overdue=state.tasks.filter(t=>t.status==='open'&&t.due_date&&t.due_date<selectedDate);
     let cursor=state.day.start, agenda='';
     for(const block of blocks) {
+      if(block.fixed) {
+        if(block.start>cursor)agenda+=`<div class="free-time">${clock(cursor)}–${clock(block.start)} · ${duration(block.start-cursor)} 留白</div>`;
+        agenda+=`<article class="agenda-item"><div class="time-label">${clock(block.start)}<span>${clock(block.end)}</span></div><div class="task-block ${block.category}"><div class="task-body"><div class="task-title">${escape(block.title)}</div><p class="meta">固定安排 · ${categories[block.category]} · ${duration(block.end-block.start)}</p><button class="text-button" data-action="cancel-fixed" data-id="${block.id}">取消这一次</button></div></div></article>`;
+        cursor=block.end;continue;
+      }
       const task=tasksById.get(block.task_id);
       if(block.start>cursor)agenda+=`<div class="free-time">${clock(cursor)}–${clock(block.start)} · ${duration(block.start-cursor)} 留白</div>`;
       agenda+=`<article class="agenda-item ${task.status==='done'?'done':''}"><div class="time-label">${clock(block.start)}<span>${clock(block.end)}</span></div><div class="task-block ${task.category}"><input class="check" type="checkbox" data-complete="${task.id}" ${task.status==='done'?'checked':''} aria-label="${task.status==='done'?'重新打开':'完成'}：${escape(task.title)}"><div class="task-body"><div class="task-title">${escape(task.title)}</div><div class="meta">${categories[task.category]} · ${duration(block.end-block.start)}${task.status==='done'?` · 实际 ${duration(task.actual_minutes)}`:''}</div><div class="meta">${outcomePath(task)}</div><div class="task-controls"><button class="text-button" data-action="edit-task" data-id="${task.id}">编辑</button>${task.status==='open'?`<button class="text-button" data-action="reschedule" data-id="${block.id}">改期 / 改时间</button>`:''}<button class="text-button" data-action="unschedule" data-id="${block.id}">移出日程</button></div></div></div></article>`;
@@ -98,7 +103,7 @@
     const list=backlog.map(task=>`<article class="backlog-item"><div class="task-title">${escape(task.title)}</div><div class="meta">${taskMeta(task)}</div><div class="backlog-actions">${tag(task.category)}<div><button class="text-button" data-action="edit-task" data-id="${task.id}">编辑</button><button class="button small" data-action="schedule" data-id="${task.id}">安排时间</button></div></div></article>`).join('');
     content.innerHTML=dateToolbar(`<button class="button" data-action="day">可安排 ${clock(state.day.start)}–${clock(state.day.end)} <span aria-hidden="true">⌄</span></button>`)+
       `<section class="allocation" aria-label="当日时间分配"><div class="allocation-label"><span>已安排 <strong>${duration(used)}</strong></span><span class="muted">留白 ${duration(capacity-used)}</span></div><div class="allocation-track" role="img" aria-label="学习${totals.study}分钟，生活${totals.life}分钟，休息${totals.rest}分钟，留白${capacity-used}分钟">${Object.entries(totals).map(([cat,n])=>`<span class="${cat}-fill" style="width:${n/capacity*100}%"></span>`).join('')}</div><div class="allocation-legend">${Object.entries(totals).map(([cat,n])=>`<span><i class="legend-dot ${cat}-fill"></i>${categories[cat]} ${duration(n)}</span>`).join('')}</div></section>`+
-      `<div class="day-grid"><section class="panel"><div class="panel-heading"><h2>当日日程</h2><span class="meta">${blocks.length} 项 · ${blocks.filter(b=>tasksById.get(b.task_id).status==='done').length} 项已完成</span></div>${blocks.length?agenda:`<div class="empty"><h3>今天还没有安排</h3><p>给任务留出具体的开始时间。</p><button class="button" data-action="new-task">＋ 新建任务</button></div>`}</section><aside>${carryover?`<section class="panel" style="margin-bottom:20px"><div class="panel-heading"><h2>此前未完成</h2><span class="meta">${state.carryover.length} 项</span></div>${carryover}</section>`:''}<section class="panel"><div class="panel-heading"><h2>待安排</h2><span class="meta">${backlog.length} 项</span></div><div class="backlog-list">${list||'<p class="empty">所有待办都已有安排。</p>'}</div>${backlog.length?'<button class="button primary" data-action="auto" style="width:100%;margin-top:20px">填入空闲时段</button><p class="meta" style="margin-top:10px">按截止日期、优先级排列，保留现有日程。放不下的任务会留在这里。</p>':''}</section>${overdue.length?`<div class="hint warning">${overdue.length} 项任务已过截止日期，请检查是否需要调整。</div>`:''}</aside></div>`;
+      `<div class="day-grid"><section class="panel"><div class="panel-heading"><h2>当日日程</h2><span class="meta">${blocks.length} 项 · ${blocks.filter(b=>!b.fixed&&tasksById.get(b.task_id).status==='done').length} 项已完成</span></div>${blocks.length?agenda:`<div class="empty"><h3>今天还没有安排</h3><p>给任务留出具体的开始时间。</p><button class="button" data-action="new-task">＋ 新建任务</button></div>`}</section><aside>${carryover?`<section class="panel" style="margin-bottom:20px"><div class="panel-heading"><h2>此前未完成</h2><span class="meta">${state.carryover.length} 项</span></div>${carryover}</section>`:''}<section class="panel"><div class="panel-heading"><h2>待安排</h2><span class="meta">${backlog.length} 项</span></div><div class="backlog-list">${list||'<p class="empty">所有待办都已有安排。</p>'}</div>${backlog.length?'<button class="button primary" data-action="auto" style="width:100%;margin-top:20px">填入空闲时段</button><p class="meta" style="margin-top:10px">按截止日期、优先级排列，保留现有日程。放不下的任务会留在这里。</p>':''}</section>${overdue.length?`<div class="hint warning">${overdue.length} 项任务已过截止日期，请检查是否需要调整。</div>`:''}</aside></div>`;
   }
   function renderTasks() {
     const tasks=state.tasks.filter(t=>taskFilter==='all'||t.status===taskFilter).slice().reverse();
@@ -106,6 +111,23 @@
       const block=state.blocks.find(b=>b.task_id===task.id);
       return `<article class="task-list-row ${task.status==='done'?'done':''}"><input class="check" type="checkbox" data-complete="${task.id}" ${task.status==='done'?'checked':''} aria-label="${task.status==='done'?'重新打开':'完成'}：${escape(task.title)}"><div class="task-body"><div class="task-title">${escape(task.title)}</div><div class="meta">${taskMeta(task)} · ${priorities[task.priority]}</div><div class="meta">${outcomePath(task)}</div>${block?`<div class="meta">已安排 ${block.date} ${clock(block.start)}–${clock(block.end)}</div>`:''}${task.status==='done'?`<div class="meta">${escape(task.completed_at.slice(0,10))} 完成 · 实际 ${duration(task.actual_minutes)}</div>`:''}${task.notes?`<p class="meta">${escape(task.notes)}</p>`:''}${scheduleHistory(task.id)}</div><div class="task-controls">${block&&task.status==='open'?`<button class="text-button" data-action="reschedule" data-id="${block.id}">改期 / 改时间</button>`:''}${tag(task.category)}<button class="text-button" data-action="edit-task" data-id="${task.id}">编辑</button><button class="text-button" data-action="delete-task" data-id="${task.id}">删除</button></div></article>`;
     }).join('')||'<div class="empty"><h3>这里还没有任务</h3><p>把一件具体、能完成的事情记下来。</p><button class="button" data-action="new-task">＋ 新建任务</button></div>'}</section>`;
+  }
+  const weekdays=['周一','周二','周三','周四','周五','周六','周日'];
+  function recurringForm() {
+    const end=new Date(`${selectedDate}T12:00:00`);end.setDate(end.getDate()+90);
+    const endDate=`${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`;
+    openForm('添加重复固定安排',field('title','安排名称','text','','required maxlength="160"')+
+      `<div class="form-grid">${select('category','类型',Object.entries(categories),'study')}${select('weekday','每周',weekdays.map((v,i)=>[i,v]),0)}</div>`+
+      `<div class="form-grid">${field('start_date','开始日期','date',selectedDate,'required')}${field('end_date','结束日期','date',endDate,'required')}</div>`+
+      `<div class="form-grid">${field('start','开始时间','time','09:00','required')}${field('end','结束时间','time','10:00','required')}</div>`+
+      '<p class="meta">最多设置 366 天。所有发生日期均检查冲突和当日可用时间；任一冲突时整组不保存。固定安排占用时间，不自动记录学习完成或学分。</p>',data=>api('/api/recurring','POST',data));
+  }
+  function renderCalendar() {
+    const end=new Date(`${selectedDate}T12:00:00Z`);end.setUTCDate(end.getUTCDate()+6);const last=end.toISOString().slice(0,10);
+    const slots=state.fixed_blocks.filter(b=>b.date>=selectedDate&&b.date<=last).sort((a,b)=>a.date.localeCompare(b.date)||a.start-b.start);
+    content.innerHTML=dateToolbar('<button class="button primary" data-action="new-recurring">＋ 添加重复安排</button>')+
+      `<section class="panel"><h2>重复规则</h2><p class="meta">固定时段会显示在当日日程并阻止重叠排程。取消单次不会影响其他周；停用仅取消今天及以后，过去记录保留。</p>${state.recurring_rules.map(r=>`<article class="task-list-row"><div class="task-body"><h3>${escape(r.title)}</h3><p class="meta">${weekdays[r.weekday]} ${clock(r.start)}–${clock(r.end)} · ${escape(r.start_date)} 至 ${escape(r.end_date)} · ${r.active?'已启用':'已停用'}</p></div>${r.active?`<button class="text-button" data-action="stop-recurring" data-id="${r.id}">停止后续安排</button>`:''}</article>`).join('')||'<p class="empty">添加每周课程、兼职或固定休息时间。</p>'}</section>`+
+      `<section class="panel" style="margin-top:20px"><div class="panel-heading"><h2>所选日起七天</h2><span class="meta">${selectedDate} — ${last}</span></div>${slots.map(b=>`<article class="task-list-row"><div class="task-body"><h3>${escape(b.title)}</h3><p class="meta">${b.date} ${clock(b.start)}–${clock(b.end)}</p></div><button class="text-button" data-action="cancel-fixed" data-id="${b.id}">取消这一次</button></article>`).join('')||'<p class="empty">这七天没有固定安排。</p>'}</section>`;
   }
   function goalForm(id) {
     const goal=state.goals.find(g=>g.id===id)||{target:120,unit:'学分'};
@@ -191,12 +213,12 @@
   }
   function render() {
     route=(location.hash.slice(1).split('/')[0]||'today');
-    if(!['today','tasks','goals','week','review'].includes(route))route='today';
-    const titles={today:['今日安排','DAILY PLANNER'],tasks:['任务清单','TASKS'],goals:['长期进度','GOALS & OUTCOMES'],week:['本周计划','WEEKLY PLAN'],review:['每周回顾','WEEKLY REVIEW']};
+    if(!['today','tasks','goals','week','calendar','review'].includes(route))route='today';
+    const titles={today:['今日安排','DAILY PLANNER'],tasks:['任务清单','TASKS'],goals:['长期进度','GOALS & OUTCOMES'],calendar:['固定课表','RECURRING SCHEDULE'],week:['本周计划','WEEKLY PLAN'],review:['每周回顾','WEEKLY REVIEW']};
     $('#page-title').textContent=titles[route][0];$('#page-eyebrow').textContent=titles[route][1];document.title=`FocusDesk · ${titles[route][0]}`;
     document.querySelectorAll('[data-nav]').forEach(el=>{el.classList.toggle('active',el.dataset.nav===route);if(el.dataset.nav===route)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
-    $('#global-add').textContent=route==='goals'?'＋ 新建目标':'＋ 新建任务';
-    ({today:renderToday,tasks:renderTasks,goals:renderGoals,week:renderWeek,review:renderReview}[route])();
+    $('#global-add').textContent=route==='goals'?'＋ 新建目标':route==='calendar'?'＋ 重复安排':'＋ 新建任务';
+    ({today:renderToday,tasks:renderTasks,goals:renderGoals,calendar:renderCalendar,week:renderWeek,review:renderReview}[route])();
   }
   async function mutate(path,method,data,message='已保存') {
     if(loading)return;loading=true;
@@ -215,6 +237,9 @@
       const task=state.tasks.find(t=>t.id===id);
       openForm('删除任务',`<p>删除「${escape(task.title)}」及它的日程安排？关联的课程成果会保留。</p>`,()=>api(`/api/tasks/${id}`,'DELETE',{}),'确认删除');
     }
+    else if(action==='new-recurring')recurringForm();
+    else if(action==='cancel-fixed')openForm('取消单次固定安排','<p>仅移除这一次固定安排，其他日期保持不变，取消记录会保留。</p>',()=>api(`/api/fixed-blocks/${id}`,'DELETE',{}),'确认取消');
+    else if(action==='stop-recurring')openForm('停止后续安排','<p>取消今天及以后的所有发生日期，保留过去的固定安排和变更记录。</p>',()=>api(`/api/recurring/${id}`,'DELETE',{}),'停止安排');
     else if(action==='filter'){taskFilter=button.dataset.filter;renderTasks();}
     else if(action==='new-goal')goalForm();
     else if(action==='edit-goal')goalForm(id);
@@ -244,7 +269,7 @@
     if(event.target.matches('[data-complete]')){event.target.checked=!event.target.checked;completeForm(Number(event.target.dataset.complete));}
     if(event.target.matches('[data-requirement]')){const done=event.target.checked;event.target.checked=!done;mutate(`/api/requirements/${event.target.dataset.requirement}`,'PATCH',{done});}
   });
-  $('#global-add').addEventListener('click',()=>route==='goals'?goalForm():taskForm());
+  $('#global-add').addEventListener('click',()=>route==='goals'?goalForm():route==='calendar'?recurringForm():taskForm());
   $('#close-editor').addEventListener('click',()=>dialog.close());$('#cancel-editor').addEventListener('click',()=>dialog.close());
   $('#editor-form').addEventListener('submit',async event=>{
     event.preventDefault();const button=$('#save-editor');if(button.disabled)return;button.disabled=true;$('#editor-error').textContent='';

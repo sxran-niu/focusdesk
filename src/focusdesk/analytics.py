@@ -39,6 +39,11 @@ def weekly_report(workbench, selected_date=None):
             by_day[block["date"]]["planned"] += minutes
             categories[tasks[block["task_id"]]["category"]]["planned"] += minutes
     completed = []
+    for block in snapshot["fixed_blocks"]:
+        if block["date"] in by_day:
+            minutes = block["end"] - block["start"]
+            by_day[block["date"]]["planned"] += minutes
+            categories[block["category"]]["planned"] += minutes
     for task in tasks.values():
         completed_day = (task["completed_at"] or "")[:10]
         if task["status"] == "done" and completed_day in by_day:
@@ -101,6 +106,23 @@ def export_content(workbench, kind, selected_date=None):
                         task["status"],
                         task["actual_minutes"],
                         task["completed_at"],
+                    ]
+                )
+        for block in sorted(
+            state["fixed_blocks"], key=lambda b: (b["date"], b["start"])
+        ):
+            if report["start"] <= block["date"] <= report["end"]:
+                writer.writerow(
+                    [
+                        block["date"],
+                        clock_label(block["start"]),
+                        clock_label(block["end"]),
+                        _csv_safe(block["title"]),
+                        block["category"],
+                        block["end"] - block["start"],
+                        "fixed",
+                        "",
+                        "",
                     ]
                 )
         return "\ufeff" + buffer.getvalue(), "text/csv", "focusdesk-schedule.csv"

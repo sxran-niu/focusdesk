@@ -77,6 +77,20 @@ def create_app(database_path, demo=False):
     def add_task():
         return jsonify(id=workbench.add_task(payload())), 201
 
+    @app.post("/api/recurring")
+    def recurring():
+        return jsonify(id=workbench.calendar.add(payload())), 201
+
+    @app.delete("/api/recurring/<int:record_id>")
+    def stop_recurring(record_id):
+        workbench.calendar.stop(record_id)
+        return jsonify(ok=True)
+
+    @app.delete("/api/fixed-blocks/<int:record_id>")
+    def cancel_fixed(record_id):
+        workbench.calendar.cancel(record_id)
+        return jsonify(ok=True)
+
     @app.patch("/api/tasks/<int:record_id>")
     def update_task(record_id):
         workbench.update_task(record_id, payload())

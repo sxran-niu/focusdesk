@@ -15,6 +15,7 @@ from .models import (
     text,
 )
 from .planner import free_intervals, suggest_schedule
+from .recurring import RecurringCalendar, occupied
 from .weekly import week_start
 
 
@@ -23,6 +24,7 @@ class Workbench:
 
     def __init__(self, path):
         self.db = Database(path)
+        self.calendar = RecurringCalendar(self.db)
 
     def require(self, table, record_id, connection=None):
         record_id = integer(record_id, "记录编号")
@@ -260,10 +262,10 @@ class Workbench:
         if end <= start:
             raise ValidationError("结束时间必须晚于开始时间，暂不支持跨午夜安排。")
         with self.db.connect(write=True) as connection:
-            outside = connection.execute(
-                "SELECT 1 FROM blocks WHERE date=? AND (start<? OR end>?)",
-                (selected_date, start, end),
-            ).fetchone()
+            outside = any(
+                b["start"] < start or b["end"] > end
+                for b in occupied(connection, selected_date)
+            )
             if outside:
                 raise ValidationError("已有安排超出新时间范围，请先调整或移出日程。")
             connection.execute(
@@ -290,10 +292,10 @@ class Workbench:
             ).fetchone()
             if exists:
                 raise ValidationError("任务已在日程中，请先移出原安排。")
-            overlap = connection.execute(
-                "SELECT 1 FROM blocks WHERE date=? AND start<? AND end>?",
-                (selected_date, end, start),
-            ).fetchone()
+            overlap = any(
+                b["start"] < end and b["end"] > start
+                for b in occupied(connection, selected_date)
+            )
             if overlap:
                 raise ValidationError("这个时间段与已有安排重叠，请选择空闲时段。")
             connection.execute(
@@ -330,10 +332,10 @@ class Workbench:
             end = start + task["minutes"]
             if start < settings["start"] or end > settings["end"]:
                 raise ValidationError("任务超出目标日期的可安排时间。")
-            overlap = connection.execute(
-                "SELECT 1 FROM blocks WHERE date=? AND start<? AND end>? AND id!=?",
-                (selected_date, end, start, record_id),
-            ).fetchone()
+            overlap = any(
+                b["start"] < end and b["end"] > start
+                for b in occupied(connection, selected_date, record_id)
+            )
             if overlap:
                 raise ValidationError("这个时间段与已有安排重叠，请选择空闲时段。")
             new = {**old, "date": selected_date, "start": start, "end": end}
@@ -351,12 +353,7 @@ class Workbench:
             settings = connection.execute(
                 "SELECT * FROM day_settings WHERE date=?", (selected_date,)
             ).fetchone() or {"start": 540, "end": 1080}
-            occupied = [
-                dict(row)
-                for row in connection.execute(
-                    "SELECT * FROM blocks WHERE date=?", (selected_date,)
-                )
-            ]
+            existing = occupied(connection, selected_date)
             candidates = [
                 dict(row)
                 for row in connection.execute(
@@ -365,7 +362,7 @@ class Workbench:
                 )
             ]
             scheduled, unplaced = suggest_schedule(
-                candidates, settings["start"], settings["end"], occupied
+                candidates, settings["start"], settings["end"], existing
             )
             connection.executemany(
                 "INSERT INTO blocks(date,task_id,start,end) VALUES(?,?,?,?)",
@@ -411,6 +408,8 @@ class Workbench:
                     "changes",
                     "weekly_targets",
                     "day_settings",
+                    "recurring_rules",
+                    "fixed_blocks",
                 )
             }
             settings = connection.execute(
@@ -443,7 +442,16 @@ class Workbench:
             goal["achieved"] = (
                 goal["earned"] >= goal["target"] and goal["conditions_met"]
             )
-        today_blocks = [b for b in data["blocks"] if b["date"] == selected_date]
+        for block in data["fixed_blocks"]:
+            rule = next(
+                r for r in data["recurring_rules"] if r["id"] == block["rule_id"]
+            )
+            block.update(title=rule["title"], category=rule["category"])
+        today_blocks = [
+            b
+            for b in data["blocks"] + data["fixed_blocks"]
+            if b["date"] == selected_date
+        ]
         data["gaps"] = free_intervals(
             data["day"]["start"], data["day"]["end"], today_blocks
         )
