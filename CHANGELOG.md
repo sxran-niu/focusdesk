@@ -5,15 +5,28 @@ My [development notes](docs/DEVELOPMENT.md) explain the choices behind them;
 [checks](docs/VALIDATION.md) record the results, and the [roadmap](docs/ROADMAP.md)
 holds ideas I haven't built yet.
 
-## Unreleased
+## 0.2.0 — 2026-09-26
 
-I added project notes, a check record and a roadmap so I can follow the work.
+I brought together four improvements that make everyday planning less fiddly.
 
-### Unfinished tasks
+### Editing and recovery
 
-I added a carryover panel for tasks left on earlier days. Rescheduling keeps the
-previous appointment in history, and a failed move leaves the original in place.
-A completed task needs to be reopened before it can move.
+I added stage editing, moving courses between stages of the same goal, and archiving
+completed goals. Original targets, revisions, task links and confirmed results stay
+attached to the same records. An archived goal can be reopened before editing.
+
+I also added JSON backup and restore. A restore checks the incoming data and saves
+a recovery copy before replacing the current space. Personal and demo data stay
+separate, and older databases upgrade without losing their records.
+
+Two smaller fixes matter here: deleted task IDs are no longer reused, and weekly
+free time no longer includes days or hours that have already passed.
+
+### Recurring appointments
+
+I added weekly classes, work and breaks over a date range. I can cancel one occurrence
+or stop future ones while keeping the past. Fixed appointments now count when the
+planner works out free time, weekly capacity and reports.
 
 ### Weekly planning
 
@@ -21,11 +34,11 @@ I added course effort targets by Monday–Sunday week, alongside scheduled time,
 actual effort and the remaining gap. Open tasks help estimate the work; they aren't
 all automatically due that week. Study hours still don't turn into credits.
 
-### Recurring appointments
+### Unfinished tasks
 
-I added weekly classes, work and breaks over a date range. I can cancel one occurrence
-or stop future ones while keeping the past. Fixed appointments now count when the
-planner works out free time, weekly capacity and reports.
+I added a carryover panel for tasks left on earlier days. Rescheduling keeps the
+previous appointment in history, and a failed move leaves the original in place.
+A completed task needs to be reopened before it can move.
 
 ## 0.1.0 — 2026-09-19
 

@@ -86,3 +86,25 @@ The September 27 checks reached 39 passing tests, including conflicts, rollback,
 saved exceptions and past appointments. To change a series, I still stop it and
 create a replacement. There is still one daily availability window.
 
+## 2026-09-26 — making plans easier to change (0.2.0)
+
+Plans change, so I added editing for stage names, dates and targets. I kept the
+original targets and revision history. Courses can move between stages of the same
+goal without losing results, task links or weekly targets. Completed goals can be
+archived and reopened when needed.
+
+I added full JSON backups too. Restoration validates a temporary database, saves
+a recovery copy, then replaces the current space in a transaction. A failed write
+rolls back. Older databases gain the new fields without clearing existing records.
+
+I also fixed two awkward edge cases: deleted task IDs could be reused and pick up
+old history, and weekly capacity counted time that had already passed. I now keep
+deleted IDs retired and calculate remaining capacity from the current day and time.
+
+The September 27 checks reached 59 passing tests, along with browser, packaging
+and fresh-install checks. The preview upgrade preserved the original data across
+nine demo tables.
+
+For now, backups replace a whole space and have an 8 MB limit. Cross-goal course
+moves, hard deletion of goals and overnight scheduling are still outside the app.
+

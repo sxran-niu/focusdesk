@@ -8,7 +8,7 @@
   const categories = {study:'学习',life:'生活',rest:'休息'};
   const priorities = {1:'低优先级',2:'普通',3:'高优先级'};
   let selectedDate = localDate(), state, route = 'today', goalId, taskFilter = 'open', modalSave, loading = false;
-  let noticeTimer, requestSequence = 0;
+  let noticeTimer, requestSequence = 0, showArchived = false;
   const content = $('#page-content');
   const dialog = $('#editor');
 
@@ -42,7 +42,7 @@
   }
   function taskForm(id) {
     const task=state.tasks.find(t=>t.id===id) || {category:'study',minutes:60,priority:2};
-    const associations=[['','独立任务，不关联长期目标'],...state.outcomes.map(o=>{const m=state.milestones.find(m=>m.id===o.milestone_id);const g=state.goals.find(g=>g.id===m.goal_id);return [o.id,`${g.title} / ${m.title} / ${o.title}`];})];
+    const associations=[['','独立任务，不关联长期目标'],...state.outcomes.filter(o=>o.id===task.outcome_id||!state.goals.find(g=>g.id===state.milestones.find(m=>m.id===o.milestone_id).goal_id).archived).map(o=>{const m=state.milestones.find(m=>m.id===o.milestone_id);const g=state.goals.find(g=>g.id===m.goal_id);return [o.id,`${g.title} / ${m.title} / ${o.title}`];})];
     openForm(id?'编辑任务':'新建任务',
       field('title','任务名称','text',task.title,'required maxlength="160"')+
       `<div class="form-grid">${select('category','类型',Object.entries(categories),task.category)}${field('minutes','预计用时（分钟）','number',task.minutes,'required min="5" max="720"')}</div>`+
@@ -135,7 +135,7 @@
       `<div class="form-grid">${field('target','成果目标数量','number',goal.target,'required min="0.01" max="100000" step="0.01"')}${field('unit','计量单位','text',goal.unit,'required maxlength="20"')}</div>`+
       field('target_date','目标完成日期','date',goal.target_date,'required')+textarea('notes','完成条件说明（可选）',goal.notes)+
       '<p class="meta">例如：两年完成硕士，目标 120 学分。必修、论文等条件可在目标中单独添加。</p>',
-      async data=>{const result=await api(id?`/api/goals/${id}`:'/api/goals',id?'PATCH':'POST',data);goalId=id||result.id;location.hash=`goals/${goalId}`;});
+      async data=>{const result=await api(id?`/api/goals/${id}`:'/api/goals',id?'PATCH':'POST',data);goalId=id||result.id;showArchived=false;location.hash=`goals/${goalId}`;});
   }
   function milestoneForm(goal) {
     const phases=state.milestones.filter(m=>m.goal_id===goal.id);
@@ -149,9 +149,10 @@
     const phase=state.milestones.find(m=>m.id===(milestoneId||outcome.milestone_id));
     const goal=state.goals.find(g=>g.id===phase.goal_id);
     openForm(id?'编辑课程 / 成果':'添加课程 / 成果',`<p class="meta">${escape(goal.title)} / ${escape(phase.title)}</p>`+
+      (id?select('milestone_id','所属阶段（沿用同一课程记录）',state.milestones.filter(m=>m.goal_id===goal.id).map(m=>[m.id,m.title]),phase.id):'')+
       field('title','课程或成果名称','text',outcome.title,'required maxlength="160"')+
       field('amount',`通过后确认的数量（${escape(goal.unit)}）`,'number',outcome.amount||6,'required min="0.01" max="100000" step="0.01"')+
-      '<p class="meta">同一门课程只建一条记录。尚未确认的数量不会计入目标进度。</p>',data=>api(id?`/api/outcomes/${id}`:'/api/outcomes',id?'PATCH':'POST',{...data,milestone_id:phase.id}));
+      '<p class="meta">同一门课程只建一条记录。尚未确认的数量不会计入目标进度。</p>',data=>api(id?`/api/outcomes/${id}`:'/api/outcomes',id?'PATCH':'POST',{milestone_id:phase.id,...data}));
   }
   function resultForm(id) {
     const outcome=state.outcomes.find(o=>o.id===id);
@@ -161,22 +162,30 @@
       textarea('notes','结果说明 / 复盘',outcome.notes)+
       '<p class="meta">以实际确认结果为准。重复保存同一结果不会重复累计。</p>',data=>api(`/api/outcomes/${id}/result`,'PUT',data),'保存结果');
   }
+  function detailHistory(entity,id) {
+    const changes=state.changes.filter(c=>c.entity===entity&&c.entity_id===id);
+    const describe=raw=>{try {const values=JSON.parse(raw), labels={title:'名称',amount:'成果数量',milestone_id:'所属阶段',start_date:'开始',end_date:'结束'};return Object.entries(values).map(([key,value])=>`${labels[key]||key}：${key==='milestone_id'?(state.milestones.find(m=>m.id===value)?.title||'原阶段'):value}`).join('，');}catch{return raw;}};
+    return changes.length?`<details class="history"><summary>资料调整记录（${changes.length}）</summary>${changes.map(c=>`<p style="overflow-wrap:anywhere">${escape(c.created_at)} · ${escape(describe(c.old_value))} → ${escape(describe(c.new_value))}</p>`).join('')}</details>`:'';
+  }
   function renderGoals() {
+    const visibleGoals=state.goals.filter(g=>Boolean(g.archived)===showArchived);
+    const filters=`<div class="toolbar"><div class="filter-group"><button class="filter-button" data-action="goal-filter" data-archived="false" aria-pressed="${!showArchived}">进行中的目标</button><button class="filter-button" data-action="goal-filter" data-archived="true" aria-pressed="${showArchived}">已归档</button></div></div>`;
     const hashId=Number(location.hash.split('/')[1]);
-    if(state.goals.some(g=>g.id===hashId))goalId=hashId;
-    if(!state.goals.some(g=>g.id===goalId))goalId=state.goals[0]?.id;
+    if(visibleGoals.some(g=>g.id===hashId))goalId=hashId;
+    if(!visibleGoals.some(g=>g.id===goalId))goalId=visibleGoals[0]?.id;
     const goal=state.goals.find(g=>g.id===goalId);
-    if(!goal){content.innerHTML='<section class="panel empty"><h2>为日常行动设定一个方向</h2><p>先建立长期目标，再添加阶段、课程或成果。</p><button class="button primary" data-action="new-goal">＋ 新建目标</button></section>';return;}
+    if(!goal&&showArchived){content.innerHTML=filters+'<section class="panel empty">暂时没有已归档目标。完成目标后可以归档，所有成果仍会保留。</section>';return;}
+    if(!goal){content.innerHTML=filters+'<section class="panel empty"><h2>为日常行动设定一个方向</h2><p>先建立长期目标，再添加阶段、课程或成果。</p><button class="button primary" data-action="new-goal">＋ 新建目标</button></section>';return;}
     const phases=state.milestones.filter(m=>m.goal_id===goal.id);
     const requirements=state.requirements.filter(r=>r.goal_id===goal.id);
     const percent=Math.min(100,goal.earned/goal.target*100);
     const goalHistory=state.changes.filter(c=>c.entity==='goal'&&c.entity_id===goal.id);
-    content.innerHTML=`<div class="goal-grid"><div class="goal-options">${state.goals.map(g=>`<button class="goal-choice ${g.id===goal.id?'selected':''}" data-action="select-goal" data-id="${g.id}" aria-pressed="${g.id===goal.id}"><span>${escape(g.title)}</span><span class="meta">${g.earned} / ${g.target} ${escape(g.unit)}</span></button>`).join('')}</div><div class="goal-detail"><section class="panel"><div class="panel-heading"><h2>${escape(goal.title)}</h2><button class="text-button" data-action="edit-goal" data-id="${goal.id}">编辑目标</button></div><p class="meta">目标日期 ${goal.target_date}${goal.achieved?' · 所设完成条件已满足':''}</p><div class="goal-stats"><div><div class="meta">已确认成果</div><div class="goal-number numbers">${goal.earned}<span class="meta"> / ${goal.target} ${escape(goal.unit)}</span></div></div><div><div class="meta">待确认</div><div class="goal-number numbers">${goal.pending}<span class="meta"> ${escape(goal.unit)}</span></div></div><div><div class="meta">距离数量目标</div><div class="goal-number numbers">${Math.max(0,Math.round((goal.target-goal.earned)*100)/100)}<span class="meta"> ${escape(goal.unit)}</span></div></div></div><div class="progress-track" role="progressbar" aria-label="已确认成果进度" aria-valuenow="${Math.min(goal.earned,goal.target)}" aria-valuemin="0" aria-valuemax="${goal.target}"><div class="progress-fill" style="width:${percent}%"></div></div><p class="meta" style="margin-top:12px">每日任务记录行动；只有已确认的成果计入此进度。</p>${goal.notes?`<p class="meta" style="margin-top:12px">${escape(goal.notes)}</p>`:''}${goal.planned!==goal.target?`<div class="hint warning">阶段计划合计 ${goal.planned} ${escape(goal.unit)}，总目标为 ${goal.target} ${escape(goal.unit)}，请检查阶段分配。</div>`:''}${goalHistory.length?`<details class="history"><summary>目标数量修改记录</summary>${goalHistory.map(c=>`<p>${escape(c.created_at.slice(0,10))} · ${escape(c.old_value)} → ${escape(c.new_value)}</p>`).join('')}</details>`:''}</section><section class="panel"><div class="panel-heading"><h3>其他完成条件</h3><button class="button small" data-action="requirement" data-id="${goal.id}">＋ 添加条件</button></div>${requirements.map(r=>`<label class="requirement-row"><input type="checkbox" class="check" data-requirement="${r.id}" ${r.done?'checked':''}><span>${escape(r.title)}</span></label>`).join('')||'<p class="meta">可添加必修模块、论文或其他必须满足的条件。</p>'}</section><div class="panel-heading" style="margin:4px 0 0"><h2>阶段与成果</h2><button class="button" data-action="milestone" data-id="${goal.id}">＋ 添加阶段</button></div>${phases.map((phase,index)=>{
+    content.innerHTML=filters+`<div class="goal-grid"><div class="goal-options">${visibleGoals.map(g=>`<button class="goal-choice ${g.id===goal.id?'selected':''}" data-action="select-goal" data-id="${g.id}" aria-pressed="${g.id===goal.id}"><span>${escape(g.title)}</span><span class="meta">${g.earned} / ${g.target} ${escape(g.unit)}</span></button>`).join('')}</div><div class="goal-detail"><section class="panel"><div class="panel-heading"><h2>${escape(goal.title)}</h2><div class="task-controls">${goal.archived?`<button class="button small" data-action="unarchive-goal" data-id="${goal.id}">取消归档</button>`:`<button class="text-button" data-action="edit-goal" data-id="${goal.id}">编辑目标</button>${goal.achieved?`<button class="button small" data-action="archive-goal" data-id="${goal.id}">归档已完成目标</button>`:''}`}</div></div><p class="meta">目标日期 ${goal.target_date}${goal.achieved?' · 所设完成条件已满足':''}</p><div class="goal-stats"><div><div class="meta">已确认成果</div><div class="goal-number numbers">${goal.earned}<span class="meta"> / ${goal.target} ${escape(goal.unit)}</span></div></div><div><div class="meta">待确认</div><div class="goal-number numbers">${goal.pending}<span class="meta"> ${escape(goal.unit)}</span></div></div><div><div class="meta">距离数量目标</div><div class="goal-number numbers">${Math.max(0,Math.round((goal.target-goal.earned)*100)/100)}<span class="meta"> ${escape(goal.unit)}</span></div></div></div><div class="progress-track" role="progressbar" aria-label="已确认成果进度" aria-valuenow="${Math.min(goal.earned,goal.target)}" aria-valuemin="0" aria-valuemax="${goal.target}"><div class="progress-fill" style="width:${percent}%"></div></div><p class="meta" style="margin-top:12px">每日任务记录行动；只有已确认的成果计入此进度。</p>${goal.notes?`<p class="meta" style="margin-top:12px">${escape(goal.notes)}</p>`:''}${goal.planned!==goal.target?`<div class="hint warning">阶段计划合计 ${goal.planned} ${escape(goal.unit)}，总目标为 ${goal.target} ${escape(goal.unit)}，请检查阶段分配。</div>`:''}${goalHistory.length?`<details class="history"><summary>目标数量修改记录</summary>${goalHistory.map(c=>`<p>${escape(c.created_at.slice(0,10))} · ${escape(c.old_value)} → ${escape(c.new_value)}</p>`).join('')}</details>`:''}</section><section class="panel"><div class="panel-heading"><h3>其他完成条件</h3><button class="button small" data-action="requirement" data-id="${goal.id}" ${goal.archived?'disabled':''}>＋ 添加条件</button></div>${requirements.map(r=>`<label class="requirement-row"><input type="checkbox" class="check" data-requirement="${r.id}" ${goal.archived?'disabled':''} ${r.done?'checked':''}><span>${escape(r.title)}</span></label>`).join('')||'<p class="meta">可添加必修模块、论文或其他必须满足的条件。</p>'}</section><div class="panel-heading" style="margin:4px 0 0"><h2>阶段与成果</h2><button class="button" data-action="milestone" data-id="${goal.id}" ${goal.archived?'disabled':''}>＋ 添加阶段</button></div>${phases.map((phase,index)=>{
       const outcomes=state.outcomes.filter(o=>o.milestone_id===phase.id);
       const changes=state.changes.filter(c=>c.entity==='milestone'&&c.entity_id===phase.id);
       const ended=phase.end_date<state.today;
       const shortage=Math.max(0,Math.round((phase.target-phase.earned)*100)/100);
-      return `<details class="term" ${index===0||phase.start_date<=state.today&&phase.end_date>=state.today?'open':''}><summary><strong>${escape(phase.title)}</strong><span class="meta">${phase.start_date} — ${phase.end_date} · 已确认 ${phase.earned} / 计划 ${phase.target} ${escape(goal.unit)}</span></summary><div class="term-content"><div class="term-toolbar"><button class="button small" data-action="outcome" data-id="${phase.id}">＋ 添加课程 / 成果</button><button class="text-button" data-action="revise" data-id="${phase.id}">调整阶段目标</button></div>${outcomes.map(outcome=>`<article class="outcome-row"><div class="outcome-body"><div class="task-title">${escape(outcome.title)}</div><div class="meta">${outcome.amount} ${escape(goal.unit)}${outcome.grade?' · 成绩 '+escape(outcome.grade):''}${outcome.result_date?' · '+escape(outcome.result_date)+' 确认':''}</div>${outcome.notes?`<p class="meta">${escape(outcome.notes)}</p>`:''}</div><span class="tag ${outcome.status}">${{pending:'待确认',passed:'已确认',failed:'未通过'}[outcome.status]}</span><button class="button small" data-action="result" data-id="${outcome.id}">记录结果</button><button class="text-button" data-action="edit-outcome" data-id="${outcome.id}">编辑</button></article>`).join('')||'<p class="empty">添加课程或成果后，就能关联每日任务。</p>'}${ended&&shortage?`<div class="hint warning">阶段已结束，已确认成果比计划少 ${shortage} ${escape(goal.unit)}${phase.pending?`，另有 ${phase.pending} ${escape(goal.unit)}待确认`:''}。请核实结果，再考虑后续安排。</div>`:''}${outcomes.some(o=>o.status==='failed')?'<div class="hint warning">本阶段有未通过的成果，可在结果说明中记录补考或下一步安排。</div>':''}<div class="history">原计划：${phase.original_target} ${escape(goal.unit)}${changes.length?`<details><summary>查看 ${changes.length} 次调整</summary>${changes.map(c=>`<p>${escape(c.created_at.slice(0,10))} · ${escape(c.old_value)} → ${escape(c.new_value)}</p>`).join('')}</details>`:''}</div></div></details>`;
+      return `<details class="term" ${index===0||phase.start_date<=state.today&&phase.end_date>=state.today?'open':''}><summary><strong>${escape(phase.title)}</strong><span class="meta">${phase.start_date} — ${phase.end_date} · 已确认 ${phase.earned} / 计划 ${phase.target} ${escape(goal.unit)}</span></summary><div class="term-content"><div class="term-toolbar"><button class="button small" data-action="outcome" data-id="${phase.id}" ${goal.archived?'disabled':''}>＋ 添加课程 / 成果</button><button class="text-button" data-action="revise" data-id="${phase.id}" ${goal.archived?'disabled':''}>编辑阶段</button></div>${outcomes.map(outcome=>`<article class="outcome-row"><div class="outcome-body"><div class="task-title">${escape(outcome.title)}</div><div class="meta">${outcome.amount} ${escape(goal.unit)}${outcome.grade?' · 成绩 '+escape(outcome.grade):''}${outcome.result_date?' · '+escape(outcome.result_date)+' 确认':''}</div>${outcome.notes?`<p class="meta">${escape(outcome.notes)}</p>`:''}${detailHistory('outcome_details',outcome.id)}</div><span class="tag ${outcome.status}">${{pending:'待确认',passed:'已确认',failed:'未通过'}[outcome.status]}</span><button class="button small" data-action="result" data-id="${outcome.id}" ${goal.archived?'disabled':''}>记录结果</button><button class="text-button" data-action="edit-outcome" data-id="${outcome.id}" ${goal.archived?'disabled':''}>编辑</button></article>`).join('')||'<p class="empty">添加课程或成果后，就能关联每日任务。</p>'}${ended&&shortage?`<div class="hint warning">阶段已结束，已确认成果比计划少 ${shortage} ${escape(goal.unit)}${phase.pending?`，另有 ${phase.pending} ${escape(goal.unit)}待确认`:''}。请核实结果，再考虑后续安排。</div>`:''}${outcomes.some(o=>o.status==='failed')?'<div class="hint warning">本阶段有未通过的成果，可在结果说明中记录补考或下一步安排。</div>':''}${detailHistory('milestone_details',phase.id)}<div class="history">原计划：${phase.original_target} ${escape(goal.unit)}${changes.length?`<details><summary>查看 ${changes.length} 次调整</summary>${changes.map(c=>`<p>${escape(c.created_at.slice(0,10))} · ${escape(c.old_value)} → ${escape(c.new_value)}</p>`).join('')}</details>`:''}</div></div></details>`;
     }).join('')||'<section class="panel empty">把长期目标拆成学期、月份或其他阶段。</section>'}</div></div>`;
   }
   async function renderWeek() {
@@ -186,10 +195,18 @@
       const plan=await api(`/api/weekly-plan?date=${viewingDate}`);
       if(route!=='week'||selectedDate!==viewingDate)return;
       content.innerHTML=dateToolbar(`<span class="meta">${plan.start} — ${plan.end}</span>`)+
-        `<section class="panel"><h2>把本周投入安排到日程</h2><p class="meta">按课程设定本周预计投入，再给关联任务安排时间。这里的分钟数不转换为学分；实际投入按完成日期单独统计。</p><div class="hint">本周尚有 ${duration(plan.free_minutes)} 空闲 · 课程计划中 ${duration(plan.unplanned_minutes)} 尚未安排</div>${plan.unplanned_minutes>plan.free_minutes?'<p class="hint warning">计划缺口超过本周剩余可用时间，请减少计划或调整日程。</p>':''}</section>`+
+        `<section class="panel"><h2>把本周投入安排到日程</h2><p class="meta">按课程设定本周预计投入，再给关联任务安排时间。这里的分钟数不转换为学分；实际投入按完成日期单独统计。</p><div class="hint">所选周从现在起可安排 ${duration(plan.remaining_free_minutes)} · 课程计划中 ${duration(plan.unplanned_minutes)} 尚未安排</div>${plan.unplanned_minutes>plan.remaining_free_minutes?'<p class="hint warning">计划缺口超过本周剩余可用时间，请减少计划或调整日程。</p>':''}</section>`+
         plan.courses.map(row=>`<section class="panel" style="margin-top:16px"><div class="panel-heading"><div><h3>${escape(row.title)}</h3><p class="meta">${escape(row.goal)} / ${escape(row.milestone)}</p></div><button class="button small" data-action="weekly-target" data-id="${row.outcome_id}" data-minutes="${row.target_minutes}">设置本周投入</button></div><div class="review-metrics"><p>本周计划 <strong>${duration(row.target_minutes)}</strong></p><p>已安排 <strong>${duration(row.scheduled_minutes)}</strong></p><p>实际投入 <strong>${duration(row.actual_minutes)}</strong></p></div><p class="${row.unplanned_minutes?'hint warning':'meta'}">${row.target_minutes?`还有 ${duration(row.unplanned_minutes)} 尚未安排`:'尚未设置本周投入目标'}</p><p class="meta">关联的未完成任务共预计 ${duration(row.remaining_task_minutes)}（包含其他周任务）。请在任务中关联此课程，再进入当日日程安排时间。</p><div class="task-controls"><a class="button small" href="#tasks">查看任务</a><a class="button small" href="#today">安排所选日</a></div></section>`).join('')+
         (plan.courses.length?'':'<section class="panel empty" style="margin-top:16px"><p>先在长期目标中添加阶段与课程，再设定本周计划。</p><a class="button" href="#goals">打开长期进度</a></section>');
     } catch(error) {if(route==='week')content.innerHTML=`<p class="empty">${escape(error.message)}</p>`;}
+  }
+  async function renderBackup() {
+    content.innerHTML='<p class="empty">正在读取备份…</p>';
+    try {
+      const copies=await api('/api/backups');
+      if(route!=='backup')return;
+      content.innerHTML=`<section class="panel"><h2>保存完整数据副本</h2><p class="meta">包含目标、课程、任务、日程、重复规则、周计划和变更历史。下载到电脑后妥善保存；个人空间与示例空间不能混合恢复。</p><a class="button primary" href="/api/backup" download style="margin-top:16px">下载完整备份 JSON</a></section><section class="panel" style="margin-top:20px"><h2>从备份恢复</h2><p class="meta">选择 FocusDesk 导出的 JSON（最多 8 MB）。校验通过并确认后，会替换当前空间的数据，同时自动保存恢复前的完整副本。无效文件不会改变当前数据。</p><label class="field" style="margin-top:16px">选择备份文件<input id="backup-file" type="file" accept="application/json,.json"></label></section><section class="panel" style="margin-top:20px"><h2>恢复前的副本</h2>${copies.files.map(name=>`<p style="margin-top:12px;overflow-wrap:anywhere"><a href="/api/backups/${encodeURIComponent(name)}" download>${escape(name)}</a></p>`).join('')||'<p class="meta">执行恢复后，这里会列出自动保留的副本。</p>'}</section>`;
+    } catch(error) {if(route==='backup')content.innerHTML=`<p class="empty">${escape(error.message)}</p>`;}
   }
   async function renderReview() {
     const reviewingDate=selectedDate;
@@ -213,12 +230,12 @@
   }
   function render() {
     route=(location.hash.slice(1).split('/')[0]||'today');
-    if(!['today','tasks','goals','week','calendar','review'].includes(route))route='today';
-    const titles={today:['今日安排','DAILY PLANNER'],tasks:['任务清单','TASKS'],goals:['长期进度','GOALS & OUTCOMES'],calendar:['固定课表','RECURRING SCHEDULE'],week:['本周计划','WEEKLY PLAN'],review:['每周回顾','WEEKLY REVIEW']};
+    if(!['today','tasks','goals','week','calendar','backup','review'].includes(route))route='today';
+    const titles={today:['今日安排','DAILY PLANNER'],tasks:['任务清单','TASKS'],goals:['长期进度','GOALS & OUTCOMES'],backup:['数据备份','BACKUP & RESTORE'],calendar:['固定课表','RECURRING SCHEDULE'],week:['本周计划','WEEKLY PLAN'],review:['每周回顾','WEEKLY REVIEW']};
     $('#page-title').textContent=titles[route][0];$('#page-eyebrow').textContent=titles[route][1];document.title=`FocusDesk · ${titles[route][0]}`;
     document.querySelectorAll('[data-nav]').forEach(el=>{el.classList.toggle('active',el.dataset.nav===route);if(el.dataset.nav===route)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
     $('#global-add').textContent=route==='goals'?'＋ 新建目标':route==='calendar'?'＋ 重复安排':'＋ 新建任务';
-    ({today:renderToday,tasks:renderTasks,goals:renderGoals,calendar:renderCalendar,week:renderWeek,review:renderReview}[route])();
+    ({today:renderToday,tasks:renderTasks,goals:renderGoals,calendar:renderCalendar,backup:renderBackup,week:renderWeek,review:renderReview}[route])();
   }
   async function mutate(path,method,data,message='已保存') {
     if(loading)return;loading=true;
@@ -243,6 +260,9 @@
     else if(action==='filter'){taskFilter=button.dataset.filter;renderTasks();}
     else if(action==='new-goal')goalForm();
     else if(action==='edit-goal')goalForm(id);
+    else if(action==='goal-filter'){showArchived=button.dataset.archived==='true';goalId=undefined;renderGoals();}
+    else if(action==='archive-goal')openForm('归档已完成目标','<p>目标将移入已归档列表。课程、确认成果、关联任务和历史全部保留，可随时取消归档。</p>',()=>api(`/api/goals/${id}/archive`,'PUT',{archived:true}),'确认归档');
+    else if(action==='unarchive-goal')mutate(`/api/goals/${id}/archive`,'PUT',{archived:false},'已取消归档，可在进行中的目标中查看');
     else if(action==='select-goal'){goalId=id;location.hash=`goals/${id}`;}
     else if(action==='milestone')milestoneForm(state.goals.find(g=>g.id===id));
     else if(action==='outcome')outcomeForm(id);
@@ -250,7 +270,7 @@
     else if(action==='result')resultForm(id);
     else if(action==='revise') {
       const phase=state.milestones.find(m=>m.id===id);
-      openForm('调整阶段目标',`<p>${escape(phase.title)}</p><p class="meta">初始计划 ${phase.original_target}，目前计划 ${phase.target}。修改会保留记录。</p>`+field('target','调整后的目标数量','number',phase.target,'required min="0.01" max="100000" step="0.01"'),data=>api(`/api/milestones/${id}`,'PATCH',data));
+      openForm('编辑阶段',field('title','阶段名称','text',phase.title,'required maxlength="160"')+`<div class="form-grid">${field('start_date','开始日期','date',phase.start_date,'required')}${field('end_date','结束日期','date',phase.end_date,'required')}</div><p class="meta">初始计划 ${phase.original_target}，目前计划 ${phase.target}。修改会保留记录。</p>`+field('target','调整后的目标数量','number',phase.target,'required min="0.01" max="100000" step="0.01"'),data=>api(`/api/milestones/${id}`,'PATCH',data));
     }
     else if(action==='requirement')openForm('添加完成条件',field('title','必须满足的条件','text','','required maxlength="160"'),data=>api('/api/requirements','POST',{...data,goal_id:id}));
     else if(action==='weekly-target')openForm('设置本周投入',field('minutes','本周计划投入（分钟，0 表示不设目标）','number',button.dataset.minutes,'required min="0" max="10080"')+'<p class="meta">保存到所选日期所在的周一至周日。计划用时不计入学分。</p>',data=>api(`/api/weeks/${selectedDate}/outcomes/${id}`,'PUT',data));
@@ -264,7 +284,16 @@
       load();
     }
   });
-  content.addEventListener('change',event=>{
+  content.addEventListener('change',async event=>{
+    if(event.target.id==='backup-file') {
+      const file=event.target.files[0];if(!file)return;
+      try {
+        if(file.size>8*1024*1024)throw Error('备份文件最多 8 MB。');
+        const backup=JSON.parse(await file.text());
+        if(backup.format!=='focusdesk-backup'||backup.version!==1||!backup.tables)throw Error('这不是受支持的 FocusDesk 备份。');
+        openForm('确认恢复备份',`<p>文件：${escape(file.name)}</p><p class="meta">将用文件中的数据替换当前空间。原数据会先保存为可下载副本。</p>`+field('confirm','请输入“恢复”以确认','text','','required pattern="恢复"'),()=>api('/api/restore','POST',{backup,confirmation:'RESTORE'}),'恢复数据');
+      }catch(error){notify(error.message,true);}finally{event.target.value='';}
+    }
     if(event.target.id==='selected-date'&&event.target.value){selectedDate=event.target.value;load();}
     if(event.target.matches('[data-complete]')){event.target.checked=!event.target.checked;completeForm(Number(event.target.dataset.complete));}
     if(event.target.matches('[data-requirement]')){const done=event.target.checked;event.target.checked=!done;mutate(`/api/requirements/${event.target.dataset.requirement}`,'PATCH',{done});}
@@ -273,7 +302,7 @@
   $('#close-editor').addEventListener('click',()=>dialog.close());$('#cancel-editor').addEventListener('click',()=>dialog.close());
   $('#editor-form').addEventListener('submit',async event=>{
     event.preventDefault();const button=$('#save-editor');if(button.disabled)return;button.disabled=true;$('#editor-error').textContent='';
-    try{await modalSave(Object.fromEntries(new FormData(event.target)));dialog.close();await load();notify('已保存');}
+    try{const result=await modalSave(Object.fromEntries(new FormData(event.target)));dialog.close();await load();notify(result?.message||'已保存');}
     catch(error){$('#editor-error').textContent=error.message;}finally{button.disabled=false;}
   });
   window.addEventListener('hashchange',()=>{if(state)render();});

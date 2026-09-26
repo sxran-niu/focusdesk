@@ -8,4 +8,5 @@ generated/
 dist/
 build/
 .DS_Store
+*.sqlite3.backups/
 .Rhistory

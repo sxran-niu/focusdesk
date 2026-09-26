@@ -8,7 +8,8 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS goals (
  id INTEGER PRIMARY KEY, title TEXT NOT NULL,
  target REAL NOT NULL CHECK(target > 0), unit TEXT NOT NULL,
- target_date TEXT NOT NULL, notes TEXT NOT NULL DEFAULT ''
+ target_date TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '',
+ archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0,1))
 );
 CREATE TABLE IF NOT EXISTS milestones (
  id INTEGER PRIMARY KEY, goal_id INTEGER NOT NULL REFERENCES goals(id),
@@ -80,6 +81,15 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            connection.execute("BEGIN IMMEDIATE")
+            columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(goals)")
+            }
+            if "archived" not in columns:
+                connection.execute(
+                    "ALTER TABLE goals ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 "
+                    "CHECK(archived IN (0,1))"
+                )
 
     @contextmanager
     def connect(self, write=False):
@@ -106,6 +116,19 @@ class Database:
         columns = ", ".join(values)
         marks = ", ".join("?" for _ in values)
         with self.connect(write=True) as connection:
+            if table == "tasks":
+                # Keep deleted task IDs retired so their audit trail cannot attach
+                # to a new task that happens to reuse SQLite's highest row ID.
+                retired = connection.execute(
+                    "SELECT value FROM metadata WHERE key='retired_task_id'"
+                ).fetchone()
+                if retired:
+                    highest = connection.execute(
+                        "SELECT coalesce(max(id),0) FROM tasks"
+                    ).fetchone()[0]
+                    values = {"id": max(highest, int(retired[0])) + 1, **values}
+                    columns = ", ".join(values)
+                    marks = ", ".join("?" for _ in values)
             cursor = connection.execute(
                 f"INSERT INTO {table} ({columns}) VALUES ({marks})",
                 tuple(values.values()),

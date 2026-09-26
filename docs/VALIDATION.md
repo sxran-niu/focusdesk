@@ -68,8 +68,36 @@ Ruff lint and formatting passed.
 In the browser checks, I covered creating a series, cancelling one occurrence and
 stopping future ones. All routes passed at 1440/390/320px without page script errors.
 
+## 2026-09-27 — editing and recovery, v0.2.0
+
+I expanded the suite to **59 passing tests**. Ruff lint, formatting and JavaScript
+syntax also passed. The new cases covered:
+
+- Stage edits and course moves that keep IDs, credits, task links and targets.
+- Archiving, older-database upgrades and retired task IDs.
+- Backup round trips and recovery copies, including invalid relationships, fields,
+  dates, conflicts, versions, spaces and NaN values.
+- Failed recovery-copy writes and rollback, with appointments and history preserved.
+- Token and confirmation requirements for HTTP restore.
+- Remaining weekly capacity on Sunday at 15:00, excluding time already gone.
+
+I included backup download, file selection and restore in the browser flows.
+All routes passed at 1440/390/320px without errors or overflow. I also reviewed
+the desktop goal, weekly and backup screenshots.
+
+Packaging checks covered the offline lock, wheel/source builds and a fresh wheel
+installation with isolated imports. Pages, assets, state, weekly/backup/list APIs,
+CLI summary and `uv run -m focusdesk` worked. Wheel runtime files matched source;
+the source package included tests, docs and the browser script without personal data.
+
+I compared the preview database before and after upgrading: original records and
+fields across nine demo tables matched, and the new schema fields were present.
+Python 3.10 syntax passed; runtime checks still used macOS/Python 3.12.13.
+
 ## What I still want to try
 
 - Run the app and tests on an actual Python 3.10 interpreter.
 - Try a separate computer, Linux and other browsers.
 - Use the app over several weeks.
+
+Backup imports above 8 MB are currently unsupported.

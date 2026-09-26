@@ -1,7 +1,7 @@
 """Regression coverage for the four post-prototype development milestones."""
 
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -189,3 +189,11 @@ def test_invalid_recurrence_is_rejected(desk, values):
     with pytest.raises(ValidationError):
         desk.calendar.add(recurring_data(**values))
     assert desk.snapshot()["fixed_blocks"] == []
+
+
+def test_remaining_week_capacity_excludes_elapsed_days_and_hours(desk):
+    state = desk.snapshot("2026-09-27")  # Sunday
+    plan = weekly_plan(state, "2026-09-27", now=datetime(2026, 9, 27, 15, 0))
+    assert plan["free_minutes"] == 7 * 540
+    assert plan["remaining_free_minutes"] == 180
+    assert all(d["remaining_minutes"] == 0 for d in plan["days"][:6])

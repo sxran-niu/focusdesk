@@ -3,9 +3,10 @@
 import secrets
 import sqlite3
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_file
 from werkzeug.exceptions import HTTPException
 
+from .backup import BackupStore
 from .models import ValidationError
 from .service import Workbench
 
@@ -14,11 +15,12 @@ def create_app(database_path, demo=False):
     """Application factory used by the CLI and isolated integration tests."""
     app = Flask(__name__)
     app.config.update(
-        MAX_CONTENT_LENGTH=65536,
+        MAX_CONTENT_LENGTH=10 * 1024 * 1024,
         TRUSTED_HOSTS=["localhost", "127.0.0.1", "[::1]"],
     )
     workbench = Workbench(database_path)
     app.config["WORKBENCH"] = workbench
+    backups = BackupStore(workbench, demo=demo)
     csrf_token = secrets.token_urlsafe(32)
     app.config["CSRF_TOKEN"] = csrf_token
 
@@ -142,6 +144,48 @@ def create_app(database_path, demo=False):
     def update_goal(record_id):
         workbench.update_goal(record_id, payload())
         return jsonify(ok=True)
+
+    @app.put("/api/goals/<int:record_id>/archive")
+    def archive_goal(record_id):
+        workbench.archive_goal(record_id, payload().get("archived"))
+        return jsonify(ok=True)
+
+    @app.get("/api/backup")
+    def backup():
+        response = jsonify(backups.export())
+        response.headers["Content-Disposition"] = (
+            'attachment; filename="focusdesk-backup.json"'
+        )
+        return response
+
+    @app.get("/api/backups")
+    def recovery_copies():
+        return jsonify(files=backups.list_files())
+
+    @app.get("/api/backups/<name>")
+    def recovery_copy(name):
+        return send_file(backups.file_path(name), as_attachment=True)
+
+    @app.post("/api/restore")
+    def restore():
+        data = payload()
+        if data.get("confirmation") != "RESTORE":
+            raise ValidationError("请明确确认恢复操作。")
+        try:
+            filename = backups.restore(data.get("backup"))
+        except OSError:
+            raise ValidationError(
+                "无法保存恢复前副本，恢复未执行，请检查存储空间和权限。"
+            ) from None
+        except sqlite3.Error:
+            raise ValidationError(
+                "恢复失败，当前数据已回滚，请检查备份文件。"
+            ) from None
+        return jsonify(
+            ok=True,
+            recovery_copy=filename,
+            message="已恢复。恢复前的副本可在数据备份页面下载。",
+        )
 
     @app.patch("/api/milestones/<int:record_id>")
     def revise_milestone(record_id):

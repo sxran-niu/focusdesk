@@ -1,5 +1,7 @@
 # FocusDesk
 
+Current local release: **0.2.0**, 2026-09-26. Maintained by **sxran**.
+
 FocusDesk is a local study-and-life workbench written in Python. Its home page
 shows **the selected day's time allocation and schedule**. Long-term progress
 lives under **目标与回顾 → 长期进度**.
@@ -61,6 +63,8 @@ relative to your current working directory.
   Show shortfalls after a stage ends, while distinguishing pending results.
 - **每周回顾**: review completed work, planned/actual time and estimate differences;
   download a Markdown report, schedule CSV and SVG chart.
+
+Initial prototype screenshots (v0.2.0 adds weekly planning, fixed schedules and backups):
 
 ![Daily schedule](docs/images/today.png)
 
@@ -207,10 +211,11 @@ the entire `data/` folder as a backup. Nothing is uploaded to Drive or a server.
 
 The application is for one person on one computer. It has no login, calendar
 synchronisation, recurring task completion, automatic retake planning or
-cross-midnight blocks. Confirmations are entered manually. Goal/stage/outcome
-deletion and moving outcomes between stages are not yet exposed; tasks can be
-deleted. Outcome totals belong to the stage where the course was recorded;
-the confirmation date is stored separately.
+cross-midnight blocks. Confirmations are entered manually. Goal/stage/outcome deletion remains unavailable; completed goals can be archived
+and restored. Edit stage dates or move an outcome between stages of the same
+goal while preserving its ID, result, tasks and weekly targets. Its earned amount
+belongs to the destination stage exactly once; the recorded confirmation date
+is retained. Cross-goal course transfers are deliberately rejected.
 
 I am preparing the project locally before publishing it. Course submission
 still needs a public GitHub repository and its URL submitted in Moodle.
@@ -228,7 +233,8 @@ to an installed Chrome binary if not using Playwright's bundled browser, and
 
 Under 本周计划, set explicit effort targets for each course and Monday–Sunday
 week. A 360-minute target with 120 scheduled minutes shows a 240-minute gap.
-Recorded actual time is separate and never increases credits. Course-wide open
+Recorded actual time is separate and never increases credits. Remaining capacity
+excludes past dates and elapsed minutes today. Course-wide open
 task estimates include other weeks and do not automatically become weekly targets.
 
 ## Fixed weekly appointments
@@ -239,3 +245,23 @@ any conflict rejects the whole rule. Cancel one occurrence for an exception, or
 stop today's and future occurrences while keeping past appointments. All planners
 respect fixed time, and weekly reports/CSV include it as planned time. Fixed time
 does not automatically count as completed effort or earned credit.
+
+## Goal maintenance and backups
+
+Use 编辑阶段 to change dates/title/target and 编辑 on a course to change its
+stage within the same goal. Reuse the same course for a retake; do not create a
+duplicate credit-bearing result. Archived goals remain available under 已归档;
+unarchive before editing their details or results.
+
+数据备份 exports a versioned JSON containing all application tables, including
+weekly targets, fixed appointments and audit history. Restore accepts files up to
+8 MB, validates their schema, relationships, dates and schedule invariants in a
+temporary database, then replaces the current space in one transaction. It is a
+full replacement, not a merge. Demo and personal backups cannot be mixed.
+
+Before replacement, a complete recovery copy is saved next to the database in
+`<database-filename>.backups/`. Download it from the same page if needed. If that
+copy cannot be saved, restoration does not proceed. Keep downloaded copies
+private. Existing v0.1 databases migrate on startup without clearing their data.
+
+The development notes describe the feature milestones and their checks.

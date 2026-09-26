@@ -52,6 +52,8 @@ class Workbench:
 
     def add_milestone(self, data):
         goal = self.require("goals", data.get("goal_id"))
+        if goal["archived"]:
+            raise ValidationError("请先取消目标归档，再修改其内容。")
         start = day(data.get("start_date"), "阶段开始日期")
         end = day(data.get("end_date"), "阶段结束日期")
         if start > end or end > goal["target_date"]:
@@ -71,6 +73,8 @@ class Workbench:
 
     def update_goal(self, record_id, data):
         old = self.require("goals", record_id)
+        if old["archived"]:
+            raise ValidationError("请先取消目标归档，再修改其内容。")
         values = {
             "title": text(data.get("title", old["title"]), "目标名称"),
             "target": number(data.get("target", old["target"]), "目标数量", 0.01),
@@ -105,9 +109,29 @@ class Workbench:
                 )
 
     def revise_milestone(self, record_id, data):
-        target = number(data.get("target"), "阶段目标", 0.01)
         with self.db.connect(write=True) as connection:
             old = self.require("milestones", record_id, connection)
+            goal = self._active_goal(connection, old["goal_id"])
+            target = number(data.get("target", old["target"]), "阶段目标", 0.01)
+            details = {
+                "title": text(data.get("title", old["title"]), "阶段名称"),
+                "start_date": day(data.get("start_date", old["start_date"])),
+                "end_date": day(data.get("end_date", old["end_date"])),
+            }
+            if (
+                details["start_date"] > details["end_date"]
+                or details["end_date"] > goal["target_date"]
+            ):
+                raise ValidationError("阶段日期需按先后排列，且不晚于目标日期。")
+            previous = {key: old[key] for key in details}
+            if details != previous:
+                self._change(
+                    connection, "milestone_details", record_id, previous, details
+                )
+                connection.execute(
+                    "UPDATE milestones SET title=?,start_date=?,end_date=? WHERE id=?",
+                    (*details.values(), record_id),
+                )
             if old["target"] != target:
                 connection.execute(
                     "INSERT INTO changes(entity, entity_id, old_value, new_value) "
@@ -120,6 +144,8 @@ class Workbench:
 
     def add_outcome(self, data):
         milestone = self.require("milestones", data.get("milestone_id"))
+        if self.require("goals", milestone["goal_id"])["archived"]:
+            raise ValidationError("请先取消目标归档，再修改其内容。")
         return self.db.insert(
             "outcomes",
             {
@@ -146,6 +172,8 @@ class Workbench:
         }
         with self.db.connect(write=True) as connection:
             old = self.require("outcomes", record_id, connection)
+            milestone = self.require("milestones", old["milestone_id"], connection)
+            self._active_goal(connection, milestone["goal_id"])
             previous = {key: old[key] for key in values}
             if previous != values:
                 connection.execute(
@@ -162,17 +190,34 @@ class Workbench:
     def update_outcome(self, record_id, data):
         with self.db.connect(write=True) as connection:
             old = self.require("outcomes", record_id, connection)
+            current = self.require("milestones", old["milestone_id"], connection)
+            self._active_goal(connection, current["goal_id"])
+            destination = self.require(
+                "milestones", data.get("milestone_id", old["milestone_id"]), connection
+            )
+            if destination["goal_id"] != current["goal_id"]:
+                raise ValidationError("课程只能在同一目标的阶段之间移动。")
             title = text(data.get("title", old["title"]), "课程或成果名称")
             amount = number(data.get("amount", old["amount"]), "成果数量", 0.01)
             if old["status"] == "passed" and amount != old["amount"]:
                 raise ValidationError("修改已确认的数量前，请先将成果恢复为待确认。")
             connection.execute(
-                "UPDATE outcomes SET title=?,amount=? WHERE id=?",
-                (title, amount, record_id),
+                "UPDATE outcomes SET title=?,amount=?,milestone_id=? WHERE id=?",
+                (title, amount, destination["id"], record_id),
             )
+            previous = {key: old[key] for key in ("title", "amount", "milestone_id")}
+            values = {
+                "title": title,
+                "amount": amount,
+                "milestone_id": destination["id"],
+            }
+            if previous != values:
+                self._change(connection, "outcome_details", record_id, previous, values)
 
     def add_requirement(self, data):
         goal = self.require("goals", data.get("goal_id"))
+        if goal["archived"]:
+            raise ValidationError("请先取消目标归档，再修改其内容。")
         return self.db.insert(
             "requirements",
             {
@@ -185,7 +230,8 @@ class Workbench:
         if not isinstance(done, bool):
             raise ValidationError("完成状态无效。")
         with self.db.connect(write=True) as connection:
-            self.require("requirements", record_id, connection)
+            requirement = self.require("requirements", record_id, connection)
+            self._active_goal(connection, requirement["goal_id"])
             connection.execute(
                 "UPDATE requirements SET done=? WHERE id=?", (int(done), record_id)
             )
@@ -249,7 +295,52 @@ class Workbench:
     def delete_task(self, record_id):
         with self.db.connect(write=True) as connection:
             self.require("tasks", record_id, connection)
+            connection.execute(
+                "INSERT INTO metadata(key,value) VALUES('retired_task_id',?) "
+                "ON CONFLICT(key) DO UPDATE SET value="
+                "max(cast(value AS INTEGER),cast(excluded.value AS INTEGER))",
+                (record_id,),
+            )
             connection.execute("DELETE FROM tasks WHERE id=?", (record_id,))
+
+    def _active_goal(self, connection, goal_id):
+        goal = self.require("goals", goal_id, connection)
+        if goal["archived"]:
+            raise ValidationError("请先取消目标归档，再修改其内容。")
+        return goal
+
+    def _change(self, connection, entity, entity_id, old, new):
+        connection.execute(
+            "INSERT INTO changes(entity,entity_id,old_value,new_value) VALUES(?,?,?,?)",
+            (entity, entity_id, json.dumps(old), json.dumps(new)),
+        )
+
+    def archive_goal(self, record_id, archived):
+        """Hide a completed goal without deleting or duplicating its outcomes."""
+        if not isinstance(archived, bool):
+            raise ValidationError("归档状态无效。")
+        with self.db.connect(write=True) as connection:
+            old = self.require("goals", record_id, connection)
+            if archived:
+                earned = connection.execute(
+                    "SELECT coalesce(sum(o.amount),0) FROM outcomes o "
+                    "JOIN milestones m "
+                    "ON o.milestone_id=m.id WHERE m.goal_id=? AND o.status='passed'",
+                    (record_id,),
+                ).fetchone()[0]
+                pending = connection.execute(
+                    "SELECT 1 FROM requirements WHERE goal_id=? AND done=0",
+                    (record_id,),
+                ).fetchone()
+                if round(earned, 2) < old["target"] or pending:
+                    raise ValidationError("达到数量目标并完成所有附加条件后才可归档。")
+            if bool(old["archived"]) != archived:
+                connection.execute(
+                    "UPDATE goals SET archived=? WHERE id=?", (int(archived), record_id)
+                )
+                self._change(
+                    connection, "archive", record_id, bool(old["archived"]), archived
+                )
 
     def day_settings(self, selected_date):
         day(selected_date)
@@ -378,7 +469,9 @@ class Workbench:
         start = week_start(selected_date)
         minutes = integer(data.get("minutes"), "本周计划分钟", 0, 10080)
         with self.db.connect(write=True) as connection:
-            self.require("outcomes", outcome_id, connection)
+            outcome = self.require("outcomes", outcome_id, connection)
+            milestone = self.require("milestones", outcome["milestone_id"], connection)
+            self._active_goal(connection, milestone["goal_id"])
             connection.execute(
                 "INSERT INTO weekly_targets VALUES(?,?,?) "
                 "ON CONFLICT(week_start,outcome_id) DO UPDATE "

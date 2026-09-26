@@ -1,6 +1,6 @@
 """Weekly intentions and scheduling gaps; effort never becomes earned credit."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from .models import day
 from .planner import free_intervals
@@ -12,7 +12,7 @@ def week_start(selected_date):
     return (selected - timedelta(days=selected.weekday())).isoformat()
 
 
-def weekly_plan(state, selected_date):
+def weekly_plan(state, selected_date, now=None):
     """Compare explicit course targets with appointments and completed effort.
 
     Targets are set by the user, not inferred from credits or task deadlines.
@@ -20,6 +20,8 @@ def weekly_plan(state, selected_date):
     belong to completion date and are displayed separately, never added to plans.
     """
     start = week_start(selected_date)
+    now = now or datetime.now().astimezone()
+    today = now.date().isoformat()
     dates = [
         (date.fromisoformat(start) + timedelta(days=n)).isoformat() for n in range(7)
     ]
@@ -75,15 +77,24 @@ def weekly_plan(state, selected_date):
             for b in state["blocks"] + state.get("fixed_blocks", [])
             if b["date"] == current
         ]
-        free = sum(
-            b - a for a, b in free_intervals(setting["start"], setting["end"], blocks)
+        gaps = free_intervals(setting["start"], setting["end"], blocks)
+        free = sum(b - a for a, b in gaps)
+        remaining = free
+        if current < today:
+            remaining = 0
+        elif current == today:
+            remaining = sum(
+                max(0, b - max(a, now.hour * 60 + now.minute)) for a, b in gaps
+            )
+        days.append(
+            {"date": current, "free_minutes": free, "remaining_minutes": remaining}
         )
-        days.append({"date": current, "free_minutes": free})
     return {
         "start": start,
         "end": dates[-1],
         "courses": rows,
         "days": days,
         "free_minutes": sum(d["free_minutes"] for d in days),
+        "remaining_free_minutes": sum(d["remaining_minutes"] for d in days),
         "unplanned_minutes": sum(r["unplanned_minutes"] for r in rows),
     }

@@ -1,6 +1,6 @@
 # What's next
 
-Current version: 0.1.0.
+Current version: 0.2.0.
 
 ## Available now
 
@@ -9,10 +9,10 @@ I have the daily planner, tasks, goals and weekly reports working.
 - **Cross-day tasks**: Carryover, rescheduling and appointment history.
 - **Weekly planning**: Saved weekly course targets, scheduled/actual effort and gaps.
 - **Recurring appointments**: Weekly fixed appointments, single cancellations and future stops.
+- **Editing and recovery**: Stage editing, course moves, archiving and JSON backup/recovery.
 
 ## Still on my list
 
-- Editing and recovery.
 - Publish a public GitHub repository and submit its URL in Moodle before the deadline.
 - Try actual Python 3.10 runtime, another computer and sustained everyday use.
 
