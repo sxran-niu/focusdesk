@@ -77,7 +77,7 @@ def test_demo_backup_includes_new_schema_and_cannot_cross_spaces(desk, tmp_path)
     assert desk.snapshot()["goals"][0]["earned"] == 24
     from focusdesk import Workbench
 
-    with pytest.raises(ValidationError, match="不能混合"):
+    with pytest.raises(ValidationError, match="cannot be restored"):
         BackupStore(Workbench(tmp_path / "personal.sqlite3")).restore(backup)
 
 

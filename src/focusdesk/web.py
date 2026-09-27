@@ -30,9 +30,11 @@ def create_app(database_path, demo=False):
             if not secrets.compare_digest(
                 request.headers.get("X-FocusDesk-Token", ""), csrf_token
             ):
-                return jsonify(error="页面已过期，请刷新后重试。"), 403
+                return jsonify(
+                    error="This page has expired. Refresh and try again."
+                ), 403
             if not request.is_json:
-                return jsonify(error="请求需要 JSON 数据。"), 415
+                return jsonify(error="The request must use JSON."), 415
 
     @app.after_request
     def response_headers(response):
@@ -53,18 +55,23 @@ def create_app(database_path, demo=False):
 
     @app.errorhandler(sqlite3.IntegrityError)
     def conflict(_error):
-        return jsonify(error="记录发生冲突，请刷新并检查关联内容。"), 409
+        return jsonify(
+            error=(
+                "The record conflicts with existing data. Refresh and "
+                "check its relationships."
+            )
+        ), 409
 
     @app.errorhandler(HTTPException)
     def http_error(error):
         if request.path.startswith("/api/"):
-            return jsonify(error="请求无效或内容不存在。"), error.code
+            return jsonify(error="Invalid request or resource not found."), error.code
         return error
 
     def payload():
         data = request.get_json()
         if not isinstance(data, dict):
-            raise ValidationError("请求内容必须是一组字段。")
+            raise ValidationError("The request must contain a JSON object.")
         return data
 
     @app.get("/")
@@ -170,21 +177,25 @@ def create_app(database_path, demo=False):
     def restore():
         data = payload()
         if data.get("confirmation") != "RESTORE":
-            raise ValidationError("请明确确认恢复操作。")
+            raise ValidationError(
+                "Explicit confirmation is required to restore a backup."
+            )
         try:
             filename = backups.restore(data.get("backup"))
         except OSError:
             raise ValidationError(
-                "无法保存恢复前副本，恢复未执行，请检查存储空间和权限。"
+                "The recovery copy could not be saved. No data was "
+                "replaced. Check storage and permissions."
             ) from None
         except sqlite3.Error:
             raise ValidationError(
-                "恢复失败，当前数据已回滚，请检查备份文件。"
+                "Restoration failed and current data was rolled back. "
+                "Check the backup file."
             ) from None
         return jsonify(
             ok=True,
             recovery_copy=filename,
-            message="已恢复。恢复前的副本可在数据备份页面下载。",
+            message="Data restored. Download the recovery copy from Backups if needed.",
         )
 
     @app.patch("/api/milestones/<int:record_id>")

@@ -138,7 +138,7 @@ def test_recurring_blocks_manual_auto_moves_and_window_changes(desk):
 def test_recurring_conflict_rolls_back_entire_series(desk):
     task = desk.add_task({"title": "Already booked"})
     desk.schedule_task("2026-10-05", {"task_id": task, "start": "09:30"})
-    with pytest.raises(ValidationError, match="整组未保存"):
+    with pytest.raises(ValidationError, match="entire series"):
         desk.calendar.add(recurring_data())
     state = desk.snapshot()
     assert state["recurring_rules"] == state["fixed_blocks"] == []

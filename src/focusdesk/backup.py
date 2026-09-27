@@ -52,15 +52,15 @@ def _insert(connection, tables):
         columns = [r["name"] for r in connection.execute(f"PRAGMA table_info({table})")]
         rows = tables[table]
         if not isinstance(rows, list) or len(rows) > 50000:
-            raise ValidationError("备份表内容或记录数量无效。")
+            raise ValidationError("Invalid backup table contents or record count.")
         for row in rows:
             if not isinstance(row, dict) or set(row) != set(columns):
-                raise ValidationError("备份字段不符合当前版本。")
+                raise ValidationError("The backup fields do not match this version.")
             if any(
                 value is not None and type(value) not in (str, int, float)
                 for value in row.values()
             ):
-                raise ValidationError("备份字段类型无效。")
+                raise ValidationError("Invalid backup field type.")
         marks = ",".join("?" for _ in columns)
         connection.executemany(
             f"INSERT INTO {table} ({','.join(columns)}) VALUES ({marks})",
@@ -86,60 +86,67 @@ def _validate(candidate):
         "fixed_blocks",
     ):
         for row in state[collection]:
-            integer(row["id"], "编号")
+            integer(row["id"], "ID")
     for goal in goals.values():
-        text(goal["title"], "目标名称")
-        text(goal["unit"], "单位", 20)
-        text(goal["notes"], "说明", 2000, True)
-        number(goal["target"], "目标数量", 0.01)
+        text(goal["title"], "Goal name")
+        text(goal["unit"], "Unit", 20)
+        text(goal["notes"], "Notes", 2000, True)
+        number(goal["target"], "Goal target", 0.01)
         day(goal["target_date"])
         if goal["archived"] and not goal["achieved"]:
-            raise ValidationError("备份中的归档目标未满足完成条件。")
+            raise ValidationError(
+                "An archived goal in the backup does not meet its "
+                "completion conditions."
+            )
     for milestone in milestones.values():
-        text(milestone["title"], "阶段名称")
-        number(milestone["target"], "阶段目标", 0.01)
-        number(milestone["original_target"], "原始目标", 0.01)
+        text(milestone["title"], "Stage name")
+        number(milestone["target"], "Stage target", 0.01)
+        number(milestone["original_target"], "Original target", 0.01)
         if (
             not day(milestone["start_date"])
             <= day(milestone["end_date"])
             <= goals[milestone["goal_id"]]["target_date"]
         ):
-            raise ValidationError("备份中的阶段日期不合法。")
+            raise ValidationError("The backup contains invalid stage dates.")
     for outcome in state["outcomes"]:
-        text(outcome["title"], "课程名称")
-        number(outcome["amount"], "成果数量", 0.01)
-        text(outcome["grade"], "成绩", 40, True)
-        text(outcome["notes"], "备注", 2000, True)
+        text(outcome["title"], "Course name")
+        number(outcome["amount"], "Outcome amount", 0.01)
+        text(outcome["grade"], "Grade", 40, True)
+        text(outcome["notes"], "Notes", 2000, True)
         if outcome["status"] == "pending":
             if outcome["result_date"] is not None:
-                raise ValidationError("待确认成果不能带确认日期。")
+                raise ValidationError(
+                    "Pending outcomes cannot have a confirmation date."
+                )
         elif day(outcome["result_date"]) > date.today().isoformat():
-            raise ValidationError("成果确认日期不能在未来。")
+            raise ValidationError(
+                "An outcome confirmation date cannot be in the future."
+            )
     for requirement in state["requirements"]:
-        text(requirement["title"], "附加条件")
+        text(requirement["title"], "Additional condition")
     for task in tasks.values():
         Task(**{field: task[field] for field in Task.__dataclass_fields__})
         if task["status"] == "done":
             stamp = datetime.fromisoformat(task["completed_at"])
             if stamp.date() > date.today():
-                raise ValidationError("完成时间不能在未来。")
-            integer(task["actual_minutes"], "实际分钟", 0, 1440)
+                raise ValidationError("The completion time cannot be in the future.")
+            integer(task["actual_minutes"], "Actual minutes", 0, 1440)
         elif task["completed_at"] is not None or task["actual_minutes"] is not None:
-            raise ValidationError("未完成任务不能有完成记录。")
+            raise ValidationError("Open tasks cannot have completion records.")
     for target in state["weekly_targets"]:
-        integer(target["minutes"], "周计划分钟", 0, 10080)
+        integer(target["minutes"], "Weekly target in minutes", 0, 10080)
         if week_start(target["week_start"]) != target["week_start"]:
-            raise ValidationError("周目标日期必须是周一。")
+            raise ValidationError("Weekly targets must start on a Monday.")
     rules = {r["id"]: r for r in state["recurring_rules"]}
     for rule in rules.values():
-        integer(rule["weekday"], "星期", 0, 6)
-        integer(rule["start"], "开始分钟", 0, 1439)
-        integer(rule["end"], "结束分钟", 1, 1440)
-        text(rule["title"], "固定安排名称")
+        integer(rule["weekday"], "Weekday", 0, 6)
+        integer(rule["start"], "Start minute", 0, 1439)
+        integer(rule["end"], "End minute", 1, 1440)
+        text(rule["title"], "Fixed appointment name")
         first = date.fromisoformat(day(rule["start_date"]))
         last = date.fromisoformat(day(rule["end_date"]))
         if not 0 <= (last - first).days <= 365:
-            raise ValidationError("重复规则范围无效。")
+            raise ValidationError("Invalid recurring date range.")
     for block in state["fixed_blocks"]:
         rule = rules[block["rule_id"]]
         if (
@@ -147,32 +154,39 @@ def _validate(candidate):
             or date.fromisoformat(day(block["date"])).weekday() != rule["weekday"]
             or (block["start"], block["end"]) != (rule["start"], rule["end"])
         ):
-            raise ValidationError("固定时段与规则不一致。")
+            raise ValidationError(
+                "A fixed appointment does not match its recurring rule."
+            )
     for block in state["blocks"]:
         if block["end"] - block["start"] != tasks[block["task_id"]]["minutes"]:
-            raise ValidationError("任务时段与预计用时不一致。")
+            raise ValidationError(
+                "A task appointment does not match its estimated duration."
+            )
     settings = {day(s["date"]): s for s in state["day_settings"]}
     for setting in settings.values():
-        integer(setting["start"], "开始分钟", 0, 1439)
-        integer(setting["end"], "结束分钟", 1, 1440)
+        integer(setting["start"], "Start minute", 0, 1439)
+        integer(setting["end"], "End minute", 1, 1440)
     previous = {}
     for block in sorted(
         state["blocks"] + state["fixed_blocks"], key=lambda b: (b["date"], b["start"])
     ):
         current = day(block["date"])
-        integer(block["start"], "开始分钟", 0, 1439)
-        integer(block["end"], "结束分钟", 1, 1440)
+        integer(block["start"], "Start minute", 0, 1439)
+        integer(block["end"], "End minute", 1, 1440)
         setting = settings.get(current, {"start": 540, "end": 1080})
         if (
             block["start"] < previous.get(current, setting["start"])
             or block["end"] > setting["end"]
         ):
-            raise ValidationError("备份中存在时间冲突或超出可用范围的安排。")
+            raise ValidationError(
+                "The backup contains overlapping appointments or "
+                "appointments outside available hours."
+            )
         previous[current] = block["end"]
     for change in state["changes"]:
-        text(change["entity"], "变更类型", 40)
-        text(change["old_value"], "原值", MAX_BYTES, True)
-        text(change["new_value"], "新值", MAX_BYTES, True)
+        text(change["entity"], "Change type", 40)
+        text(change["old_value"], "Previous value", MAX_BYTES, True)
+        text(change["new_value"], "New value", MAX_BYTES, True)
         datetime.fromisoformat(change["created_at"].replace("Z", "+00:00"))
         if change["entity"] == "schedule":
             for key in ("old_value", "new_value"):
@@ -180,12 +194,14 @@ def _validate(candidate):
                 if block is not None:
                     day(block["date"])
                     if not 0 <= block["start"] < block["end"] <= 1440:
-                        raise ValidationError("安排历史时间无效。")
+                        raise ValidationError(
+                            "The schedule history contains an invalid time."
+                        )
     for item in candidate.db.rows("SELECT * FROM metadata"):
-        text(item["key"], "元数据键", 160)
-        text(item["value"], "元数据值", 2000, True)
+        text(item["key"], "Metadata key", 160)
+        text(item["value"], "Metadata value", 2000, True)
         if item["key"] == "retired_task_id":
-            integer(item["value"], "保留的任务编号")
+            integer(item["value"], "Retired task ID")
 
 
 class BackupStore:
@@ -220,7 +236,7 @@ class BackupStore:
 
     def file_path(self, name):
         if not AUTOMATIC_NAME.fullmatch(name) or name not in self.list_files():
-            raise ValidationError("恢复前副本不存在。")
+            raise ValidationError("The recovery copy does not exist.")
         return self.directory / name
 
     def restore(self, document):
@@ -230,7 +246,7 @@ class BackupStore:
         try:
             encoded = json.dumps(document, ensure_ascii=False, allow_nan=False)
             if len(encoded.encode("utf-8")) > MAX_BYTES:
-                raise ValidationError("备份文件最多 8 MB。")
+                raise ValidationError("Backup files must be no larger than 8 MB.")
             if (
                 not isinstance(document, dict)
                 or document.get("format") != "focusdesk-backup"
@@ -239,21 +255,27 @@ class BackupStore:
                 or not isinstance(document.get("tables"), dict)
                 or set(document["tables"]) != set(TABLES)
             ):
-                raise ValidationError("不支持的备份格式或版本。")
+                raise ValidationError("Unsupported backup format or version.")
             if document.get("space") != self.space:
-                raise ValidationError("个人空间和示例空间的备份不能混合恢复。")
+                raise ValidationError(
+                    "Personal and demo backups cannot be restored into the other space."
+                )
             with tempfile.TemporaryDirectory(prefix="focusdesk-restore-") as directory:
                 candidate = Workbench(Path(directory) / "validate.sqlite3")
                 with candidate.db.connect(write=True) as connection:
                     _insert(connection, document["tables"])
                     if connection.execute("PRAGMA foreign_key_check").fetchall():
-                        raise ValidationError("备份中存在断开的关联。")
+                        raise ValidationError(
+                            "The backup contains broken relationships."
+                        )
                 _validate(candidate)
                 tables = BackupStore(candidate).export()["tables"]
         except (KeyError, TypeError, ValueError, OverflowError, sqlite3.Error) as error:
             if isinstance(error, ValidationError):
                 raise
-            raise ValidationError("备份校验失败，当前数据没有改变。") from None
+            raise ValidationError(
+                "Backup validation failed. Current data has not changed."
+            ) from None
         with self.db.connect(write=True) as connection:
             previous = _document(connection, self.space)
             self.directory.mkdir(parents=True, exist_ok=True)

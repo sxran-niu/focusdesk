@@ -94,10 +94,37 @@ I compared the preview database before and after upgrading: original records and
 fields across nine demo tables matched, and the new schema fields were present.
 Python 3.10 syntax passed; runtime checks still used macOS/Python 3.12.13.
 
+## 2026-09-27 — English edition, v0.3.0
+
+The suite reached **62 passing tests**. Ruff lint, formatting and JavaScript syntax
+for the app and browser script passed. I added demo-language cases for fresh data,
+repeated startup, edited and added text, dates, IDs, credits, completion, appointments
+and history. Personal data was not translated.
+
+I checked the English flows for carryover, weekly gaps, recurring exceptions,
+stage editing, course moves, archiving and JSON recovery. All seven routes passed
+at 1440/390/320px without script errors or overflow. This included English labels,
+narrow forms, a time-validation error and a fresh demo. Updated screenshots were
+reviewed too, including the planner at 320px.
+
+I checked the offline lock, editable sync and 0.3.0 wheel/source builds. A fresh
+wheel installation passed isolated imports, pages, assets, APIs and CLI checks.
+Packaged runtime files matched source. The source package included the guide,
+migration, tests and browser script without personal databases.
+
+All 20 local links and Python 3.10 syntax checks passed. An AST comparison showed
+only string changes in existing Python modules outside demo initialisation.
+The runtime environment remained macOS/Python 3.12.13.
+
+I compared all 12 live demo tables: 19 stock fields changed to English and one
+language marker was added. Every other value matched, including edited text,
+dates, quantities, links and history. The personal database hash was unchanged,
+and a pre-upgrade SQLite copy was kept in the ignored data directory.
+
 ## What I still want to try
 
 - Run the app and tests on an actual Python 3.10 interpreter.
-- Try a separate computer, Linux and other browsers.
-- Use the app over several weeks.
+- Install it on a separate clean computer and try Linux and other browsers.
+- Use it for several weeks to see how carryover, estimates and revisions hold up.
 
 Backup imports above 8 MB are currently unsupported.

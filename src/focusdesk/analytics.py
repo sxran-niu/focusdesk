@@ -190,7 +190,7 @@ def export_content(workbench, kind, selected_date=None):
             "</g></svg>"
         )
         return svg, "image/svg+xml", "focusdesk-week.svg"
-    raise ValidationError("不支持的导出格式。")
+    raise ValidationError("Unsupported export format.")
 
 
 def save_report(workbench, directory, selected_date=None):

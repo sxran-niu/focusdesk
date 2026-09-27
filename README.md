@@ -1,17 +1,17 @@
 # FocusDesk
 
-Current local release: **0.2.0**, 2026-09-26. Maintained by **sxran**.
+Current local release: **0.3.0**, 2026-09-27. Maintained by **sxran**.
 
 FocusDesk is a local study-and-life workbench written in Python. Its home page
 shows **the selected day's time allocation and schedule**. Long-term progress
-lives under **目标与回顾 → 长期进度**.
+lives under **Goals & reviews → Long-term progress**.
 
 A task represents effort. A confirmed course result represents an outcome.
 Completing a study task never awards academic credits. Goals, stages, courses,
 tasks, schedules and recorded results are saved in SQLite on your computer.
 
 This is an *Introduction to Python* final project, targeting Python 3.10+.
-The interface is in Chinese. See [the beginner's guide](docs/GETTING_STARTED_ZH.md)
+The interface, built-in demo, documentation and example reports are in English. See [the beginner's guide](docs/GETTING_STARTED.md)
 for a walkthrough and [the course checklist](docs/COURSE_CHECKLIST.md) for scope.
 
 ## Install and run
@@ -37,7 +37,9 @@ uv run -m focusdesk --demo serve
 The demo illustrates a fictional 120-credit goal over four stages. It does not
 represent any particular university's degree requirements. Edit targets and
 conditions according to your actual programme. The demo is seeded once; later
-launches preserve changes made to it.
+launches preserve changes made to it. Upgrading an older demo translates only
+unchanged stock labels once. User-authored text, edited labels, dates, results and
+history retain their original values. Personal data is never automatically translated.
 
 If port 8765 is in use, stop the previous server or choose another port:
 
@@ -51,20 +53,20 @@ relative to your current working directory.
 
 ## What works
 
-- **今日安排**: choose a day and available hours; schedule tasks at specific times;
+- **Daily planner**: choose a day and available hours; schedule tasks at specific times;
   see study, life, rest and free time; reject overlapping/out-of-range blocks;
   fill remaining gaps without moving existing appointments.
-- **任务清单**: create, edit, delete, complete and reopen tasks; record actual minutes;
+- **Tasks**: create, edit, delete, complete and reopen tasks; record actual minutes;
   assign categories, priorities, deadlines and optional outcome links.
-- **长期进度**: create/edit quantified goals; add stages and courses/outcomes;
+- **Long-term progress**: create/edit quantified goals; add stages and courses/outcomes;
   confirm results, dates and optional grades; track additional completion
   conditions such as mandatory modules or a thesis.
 - **Plan revision**: preserve each stage's original target and log target changes.
   Show shortfalls after a stage ends, while distinguishing pending results.
-- **每周回顾**: review completed work, planned/actual time and estimate differences;
+- **Weekly review**: review completed work, planned/actual time and estimate differences;
   download a Markdown report, schedule CSV and SVG chart.
 
-Initial prototype screenshots (v0.2.0 adds weekly planning, fixed schedules and backups):
+English demo screenshots (v0.3.0):
 
 ![Daily schedule](docs/images/today.png)
 
@@ -167,6 +169,10 @@ src/focusdesk/
   service.py        Application rules and progress aggregation
   analytics.py      Weekly analysis and file exports
   demo.py           Explicit fictional demonstration data
+  demo_legacy.py    Safe translation of unchanged legacy demo labels
+  weekly.py         Weekly effort targets and capacity
+  recurring.py      Fixed weekly appointments and exceptions
+  backup.py         Validated backup and transactional recovery
   web.py            Flask application and JSON endpoints
   templates/        Page structure
   static/           CSS, browser interactions and favicon
@@ -231,7 +237,7 @@ to an installed Chrome binary if not using Playwright's bundled browser, and
 
 ## Weekly planning
 
-Under 本周计划, set explicit effort targets for each course and Monday–Sunday
+Under Weekly plan, set explicit effort targets for each course and Monday–Sunday
 week. A 360-minute target with 120 scheduled minutes shows a 240-minute gap.
 Recorded actual time is separate and never increases credits. Remaining capacity
 excludes past dates and elapsed minutes today. Course-wide open
@@ -239,7 +245,7 @@ task estimates include other weeks and do not automatically become weekly target
 
 ## Fixed weekly appointments
 
-固定课表 creates one weekly occurrence within an explicit start/end date range.
+Fixed schedule creates one weekly occurrence within an explicit start/end date range.
 Every occurrence must fit that day's availability and avoid existing appointments;
 any conflict rejects the whole rule. Cancel one occurrence for an exception, or
 stop today's and future occurrences while keeping past appointments. All planners
@@ -248,16 +254,17 @@ does not automatically count as completed effort or earned credit.
 
 ## Goal maintenance and backups
 
-Use 编辑阶段 to change dates/title/target and 编辑 on a course to change its
+Use Edit stage to change dates/title/target and Edit on a course to change its
 stage within the same goal. Reuse the same course for a retake; do not create a
-duplicate credit-bearing result. Archived goals remain available under 已归档;
+duplicate credit-bearing result. Archived goals remain available under Archived;
 unarchive before editing their details or results.
 
-数据备份 exports a versioned JSON containing all application tables, including
+Backups exports a versioned JSON containing all application tables, including
 weekly targets, fixed appointments and audit history. Restore accepts files up to
 8 MB, validates their schema, relationships, dates and schedule invariants in a
 temporary database, then replaces the current space in one transaction. It is a
-full replacement, not a merge. Demo and personal backups cannot be mixed.
+full replacement, not a merge. Type **RESTORE** in the confirmation dialog.
+Demo and personal backups cannot be mixed.
 
 Before replacement, a complete recovery copy is saved next to the database in
 `<database-filename>.backups/`. Download it from the same page if needed. If that

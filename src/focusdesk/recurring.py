@@ -29,25 +29,32 @@ class RecurringCalendar:
         self.db = database
 
     def add(self, data):
-        title = text(data.get("title"), "固定安排名称")
+        title = text(data.get("title"), "Fixed appointment name")
         category = data.get("category", "study")
         if category not in ("study", "life", "rest"):
-            raise ValidationError("固定安排类型无效。")
-        weekday = integer(data.get("weekday"), "星期", 0, 6)
+            raise ValidationError("Invalid fixed appointment category.")
+        weekday = integer(data.get("weekday"), "Weekday", 0, 6)
         first = date.fromisoformat(day(data.get("start_date")))
         last = date.fromisoformat(day(data.get("end_date")))
         if not 0 <= (last - first).days <= 365:
-            raise ValidationError("重复安排需有明确起止日期，范围最多 366 天。")
+            raise ValidationError(
+                "Recurring appointments need a date range of no more than 366 days."
+            )
         start, end = clock_minutes(data.get("start")), clock_minutes(data.get("end"))
         if end <= start:
-            raise ValidationError("结束时间必须晚于开始时间，不支持跨午夜。")
+            raise ValidationError(
+                "The end time must follow the start time. Overnight "
+                "appointments are not supported."
+            )
         dates = [
             (first + timedelta(days=n)).isoformat()
             for n in range((last - first).days + 1)
             if (first + timedelta(days=n)).weekday() == weekday
         ]
         if not dates:
-            raise ValidationError("日期范围内没有选定的星期，请调整范围。")
+            raise ValidationError(
+                "The selected weekday does not occur within this date range."
+            )
         with self.db.connect(write=True) as connection:
             for current in dates:
                 setting = connection.execute(
@@ -55,13 +62,18 @@ class RecurringCalendar:
                 ).fetchone() or {"start": 540, "end": 1080}
                 if start < setting["start"] or end > setting["end"]:
                     raise ValidationError(
-                        f"{current} 的固定安排超出可用时间，请先调整该日。"
+                        f"{current} falls outside the available hours. "
+                        f"Adjust that day first."
                     )
                 if any(
                     b["start"] < end and b["end"] > start
                     for b in occupied(connection, current)
                 ):
-                    raise ValidationError(f"{current} 与已有安排冲突，整组未保存。")
+                    raise ValidationError(
+                        f"{current} conflicts with an existing "
+                        f"appointment. The entire series was left "
+                        f"unchanged."
+                    )
             rule_id = connection.execute(
                 "INSERT INTO recurring_rules(title,category,weekday,start_date,"
                 "end_date,start,end) VALUES(?,?,?,?,?,?,?)",
@@ -85,10 +97,12 @@ class RecurringCalendar:
         """Cancel one occurrence without changing the other weeks."""
         with self.db.connect(write=True) as connection:
             old = connection.execute(
-                "SELECT * FROM fixed_blocks WHERE id=?", (integer(record_id, "编号"),)
+                "SELECT * FROM fixed_blocks WHERE id=?", (integer(record_id, "ID"),)
             ).fetchone()
             if not old:
-                raise ValidationError("固定安排不存在，请刷新。")
+                raise ValidationError(
+                    "This fixed appointment no longer exists. Refresh the page."
+                )
             connection.execute(
                 "INSERT INTO changes(entity,entity_id,old_value,new_value) "
                 "VALUES('fixed_block',?,?,?)",
@@ -101,10 +115,12 @@ class RecurringCalendar:
         with self.db.connect(write=True) as connection:
             old = connection.execute(
                 "SELECT * FROM recurring_rules WHERE id=?",
-                (integer(record_id, "编号"),),
+                (integer(record_id, "ID"),),
             ).fetchone()
             if not old:
-                raise ValidationError("重复规则不存在，请刷新。")
+                raise ValidationError(
+                    "This recurring rule no longer exists. Refresh the page."
+                )
             if not old["active"]:
                 return
             future = [

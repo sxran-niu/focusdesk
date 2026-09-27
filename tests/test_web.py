@@ -6,7 +6,7 @@ def test_home_assets_and_guarded_mutations(tmp_path):
     client = app.test_client()
     page = client.get("/")
     assert page.status_code == 200
-    assert "今日安排" in page.text
+    assert "Daily planner" in page.text
     assert client.get("/static/app.js").status_code == 200
     assert client.get("/static/style.css").status_code == 200
     assert client.post("/api/tasks", json={"title": "No token"}).status_code == 403

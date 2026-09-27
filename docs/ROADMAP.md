@@ -1,6 +1,6 @@
 # What's next
 
-Current version: 0.2.0.
+Current version: 0.3.0.
 
 ## Available now
 
@@ -10,6 +10,7 @@ I have the daily planner, tasks, goals and weekly reports working.
 - **Weekly planning**: Saved weekly course targets, scheduled/actual effort and gaps.
 - **Recurring appointments**: Weekly fixed appointments, single cancellations and future stops.
 - **Editing and recovery**: Stage editing, course moves, archiving and JSON backup/recovery.
+- **English edition**: English interface, demo, guides, examples and screenshots.
 
 ## Still on my list
 

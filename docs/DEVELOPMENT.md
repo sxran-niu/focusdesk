@@ -108,3 +108,23 @@ nine demo tables.
 For now, backups replace a whole space and have an 8 MB limit. Cross-goal course
 moves, hard deletion of goals and overnight scheduling are still outside the app.
 
+## 2026-09-27 — an English version throughout (0.3.0)
+
+I switched the built-in interface, demo, guides, examples and screenshots to English.
+The getting-started guide became `GETTING_STARTED.md`, and backup restoration now
+asks for **RESTORE**.
+
+I wanted to keep existing data safe during the change. The demo update translates
+a stock label only if both its ID and old text match. Edited labels, added records
+and personal text keep their original wording. Dates, amounts, links and history
+stay as they were, and the backup format remains compatible.
+
+The release checks reached 62 passing tests. English flows worked across all seven
+routes at desktop and narrow widths, and a fresh wheel installation passed. Comparing
+all 12 demo tables showed 19 stock text changes and one language marker; everything
+else matched. The personal database hash was unchanged.
+
+I still need an actual Python 3.10 run, another environment and more sustained use.
+The detailed results are in [checks](VALIDATION.md).
+
+

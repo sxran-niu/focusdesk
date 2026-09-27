@@ -2,24 +2,31 @@
 
 from datetime import date, timedelta
 
+from .demo_legacy import upgrade_demo_language
 from .models import ValidationError
 
 
 def seed_demo(workbench):
-    """Seed only a completely empty database; subsequent starts are idempotent."""
+    """Seed an empty demo or translate unchanged legacy labels exactly once."""
     if workbench.db.rows("SELECT 1 FROM metadata WHERE key='demo_seeded'"):
+        upgrade_demo_language(workbench)
         return
     state = workbench.snapshot()
     if state["goals"] or state["tasks"]:
-        raise ValidationError("示例数据只能写入空数据库，请使用独立的 --demo 空间。")
+        raise ValidationError(
+            "Demo data requires an empty database. Use the separate --demo space."
+        )
     today = date.today()
     goal = workbench.add_goal(
         {
-            "title": "两年完成硕士（示例）",
+            "title": "Finish a master’s degree in two years (demo)",
             "target": 120,
-            "unit": "学分",
+            "unit": "credits",
             "target_date": (today + timedelta(days=730)).isoformat(),
-            "notes": "虚构的 120 学分示例；请按自己的培养方案设置目标与完成条件。",
+            "notes": (
+                "Fictional 120-credit example. Set targets and conditions "
+                "for your actual degree programme."
+            ),
         }
     )
     terms = []
@@ -29,7 +36,7 @@ def seed_demo(workbench):
             workbench.add_milestone(
                 {
                     "goal_id": goal,
-                    "title": f"第 {index + 1} 学期",
+                    "title": f"Semester {index + 1}",
                     "start_date": start.isoformat(),
                     "end_date": (start + timedelta(days=179)).isoformat(),
                     "target": 30,
@@ -39,7 +46,7 @@ def seed_demo(workbench):
     baseline = workbench.add_outcome(
         {
             "milestone_id": terms[0],
-            "title": "已通过课程汇总（示例）",
+            "title": "Previously passed courses (demo)",
             "amount": 24,
         }
     )
@@ -48,26 +55,29 @@ def seed_demo(workbench):
         {
             "status": "passed",
             "result_date": (today - timedelta(days=7)).isoformat(),
-            "notes": "演示汇总。真实使用时建议逐门课程录入，避免重复计算。",
+            "notes": (
+                "Demo total. In your personal space, record each course "
+                "separately to avoid duplicate credit."
+            ),
         },
     )
     course = workbench.add_outcome(
         {
             "milestone_id": terms[0],
-            "title": "IIP 项目（示例）",
+            "title": "IIP project (demo)",
             "amount": 6,
         }
     )
-    for title in ("完成培养方案规定的必修模块", "论文与答辩通过"):
+    for title in ("Complete all required modules", "Pass the thesis and defence"):
         workbench.add_requirement({"goal_id": goal, "title": title})
     task_specs = [
-        ("完成任务保存模块", "study", 60, 3, 2, course, "09:00"),
-        ("阅读 Python 第 5 章", "study", 45, 2, 1, course, "10:30"),
-        ("午餐与休息", "rest", 60, 2, 0, None, "12:00"),
-        ("买菜，为晚餐做准备", "life", 30, 2, 0, None, "16:00"),
-        ("出门散步", "rest", 30, 1, 0, None, "17:00"),
-        ("整理本周课堂笔记", "study", 45, 2, 3, course, None),
-        ("洗衣服", "life", 30, 1, 1, None, None),
+        ("Implement task persistence", "study", 60, 3, 2, course, "09:00"),
+        ("Read Python chapter 5", "study", 45, 2, 1, course, "10:30"),
+        ("Lunch and a break", "rest", 60, 2, 0, None, "12:00"),
+        ("Buy groceries for dinner", "life", 30, 2, 0, None, "16:00"),
+        ("Go for a walk", "rest", 30, 1, 0, None, "17:00"),
+        ("Organise this week’s lecture notes", "study", 45, 2, 3, course, None),
+        ("Do the laundry", "life", 30, 1, 1, None, None),
     ]
     for title, category, minutes, priority, offset, outcome_id, start in task_specs:
         task_id = workbench.add_task(
@@ -85,3 +95,4 @@ def seed_demo(workbench):
                 today.isoformat(), {"task_id": task_id, "start": start}
             )
     workbench.db.insert("metadata", {"key": "demo_seeded", "value": "1"})
+    workbench.db.insert("metadata", {"key": "demo_language", "value": "en"})

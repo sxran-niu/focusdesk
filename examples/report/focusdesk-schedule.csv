@@ -1,8 +1,6 @@
 ﻿date,start,end,task,category,planned_minutes,status,actual_minutes,completed_at
-2026-09-26,09:00,10:00,完成任务保存模块,study,60,open,,
-2026-09-26,10:00,10:30,洗衣服,life,30,open,,
-2026-09-26,10:30,11:15,阅读 Python 第 5 章,study,45,open,,
-2026-09-26,11:15,12:00,整理本周课堂笔记,study,45,open,,
-2026-09-26,12:00,13:00,午餐与休息,rest,60,open,,
-2026-09-26,16:00,16:30,买菜，为晚餐做准备,life,30,open,,
-2026-09-26,17:00,17:30,出门散步,rest,30,open,,
+2026-09-27,09:00,10:00,Implement task persistence,study,60,done,55,2026-09-27T22:43:52.164124+02:00
+2026-09-27,10:30,11:15,Read Python chapter 5,study,45,open,,
+2026-09-27,12:00,13:00,Lunch and a break,rest,60,open,,
+2026-09-27,16:00,16:30,Buy groceries for dinner,life,30,open,,
+2026-09-27,17:00,17:30,Go for a walk,rest,30,open,,

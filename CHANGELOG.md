@@ -5,6 +5,16 @@ My [development notes](docs/DEVELOPMENT.md) explain the choices behind them;
 [checks](docs/VALIDATION.md) record the results, and the [roadmap](docs/ROADMAP.md)
 holds ideas I haven't built yet.
 
+## 0.3.0 — 2026-09-27
+
+I switched the built-in interface and project materials to English: navigation,
+forms, errors, demo labels, guides, screenshots and example reports.
+
+- I kept personal text in its original language. Existing demo labels are translated
+  only when they still match the original examples, so edits and added records stay put.
+- I changed the backup confirmation word to **RESTORE**.
+- I included English browser flows and narrow-screen forms in the release checks.
+
 ## 0.2.0 — 2026-09-26
 
 I brought together four improvements that make everyday planning less fiddly.
