@@ -190,7 +190,19 @@ library. No external dataset or network service is needed after installation.
 
 See the [changelog](CHANGELOG.md), [dated development log](docs/DEVELOPMENT.md),
 [verification record](docs/VALIDATION.md) and [remaining work](docs/ROADMAP.md).
-The development notes describe each milestone and the checks recorded for it.
+I keep the development decisions and test results in these notes. Separate
+commits track the milestone snapshots, with release tags for versions 0.1.0,
+0.2.0 and 0.3.0.
+
+| Milestone | Date |
+| --- | --- |
+| First version, 0.1.0 | 2026-09-19 |
+| Development notes | 2026-09-20 |
+| Cross-day tasks | 2026-09-22 |
+| Weekly planning | 2026-09-23 |
+| Recurring appointments | 2026-09-24 |
+| Editing and recovery, 0.2.0 | 2026-09-26 |
+| English edition, 0.3.0 | 2026-09-27 |
 
 ```sh
 uv sync --dev
@@ -223,8 +235,9 @@ goal while preserving its ID, result, tasks and weekly targets. Its earned amoun
 belongs to the destination stage exactly once; the recorded confirmation date
 is retained. Cross-goal course transfers are deliberately rejected.
 
-I am preparing the project locally before publishing it. Course submission
-still needs a public GitHub repository and its URL submitted in Moodle.
+I am preparing the project locally before publishing it. Course submission still
+needs a public GitHub repository and its URL submitted in Moodle before the
+listed deadline. The [course checklist](docs/COURSE_CHECKLIST.md) tracks those steps.
 
 ## Optional browser acceptance checks
 
@@ -271,4 +284,5 @@ Before replacement, a complete recovery copy is saved next to the database in
 copy cannot be saved, restoration does not proceed. Keep downloaded copies
 private. Existing v0.1 databases migrate on startup without clearing their data.
 
-The development notes describe the feature milestones and their checks.
+The development notes describe how these features grew into versions 0.2.0 and
+0.3.0. The checks page records the test runs and what I still want to try.

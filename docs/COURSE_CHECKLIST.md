@@ -24,7 +24,7 @@ to files.
 | Notebook demonstration | Optional; not included |
 | Matplotlib / Seaborn | Optional; the current chart uses self-contained SVG |
 | Public GitHub repository | Pending manual publication |
-| Meaningful Git history | Local milestone snapshots; public repository pending |
+| Meaningful Git history | Separate milestone snapshots and release tags; public repository pending |
 | Moodle repository URL before the deadline | Pending; I still need to confirm the exact time in Moodle |
 
 The course describes a scope of around 50 hours, without a minimum number of
